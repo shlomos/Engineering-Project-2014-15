@@ -1,0 +1,3 @@
+C:/Users/Solomon/Desktop/TestBin/CMakeFiles/ALL_BUILD.dir
+C:/Users/Solomon/Desktop/TestBin/CMakeFiles/ReadImageData.dir
+C:/Users/Solomon/Desktop/TestBin/CMakeFiles/ZERO_CHECK.dir
