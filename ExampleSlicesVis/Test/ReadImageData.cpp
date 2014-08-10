@@ -1,7 +1,7 @@
 #include <vtkSmartPointer.h>
 #include <vtkPolyDataMapper.h>
 #include <vtkStructuredPointsReader.h>
-#include <vtkImageDataGeometryFilter.h>
+#include <vtkImageViewer2.h>
 #include <vtkRenderWindow.h>
 #include <vtkRenderWindowInteractor.h>
 #include <vtkRenderer.h>
@@ -23,35 +23,21 @@ int main(int argc, char* argv[])
     vtkSmartPointer<vtkStructuredPointsReader>::New();
   reader->SetFileName(inputFilename.c_str());
   reader->Update();
+
  
-  vtkSmartPointer<vtkImageDataGeometryFilter> geometryFilter =
-    vtkSmartPointer<vtkImageDataGeometryFilter>::New();
-  geometryFilter->SetInputConnection(reader->GetOutputPort());
-  geometryFilter->Update();
- 
-  // Visualize
-  vtkSmartPointer<vtkPolyDataMapper> mapper =
-    vtkSmartPointer<vtkPolyDataMapper>::New();
-  mapper->SetInputConnection(geometryFilter->GetOutputPort());
- 
-  vtkSmartPointer<vtkActor> actor =
-    vtkSmartPointer<vtkActor>::New();
-  actor->SetMapper(mapper);
- 
-  vtkSmartPointer<vtkRenderer> renderer =
-    vtkSmartPointer<vtkRenderer>::New();
-  vtkSmartPointer<vtkRenderWindow> renderWindow =
-    vtkSmartPointer<vtkRenderWindow>::New();
-  renderWindow->AddRenderer(renderer);
-  vtkSmartPointer<vtkRenderWindowInteractor> renderWindowInteractor =
-    vtkSmartPointer<vtkRenderWindowInteractor>::New();
-  renderWindowInteractor->SetRenderWindow(renderWindow);
- 
-  renderer->AddActor(actor);
-  renderer->SetBackground(0,0,0); // Background color green
- 
-  renderWindow->Render();
-  renderWindowInteractor->Start();
+    // Visualize
+   vtkSmartPointer<vtkImageViewer2>viewer=
+	vtkSmartPointer<vtkImageViewer2>::New();
+	vtkSmartPointer<vtkRenderWindowInteractor>interactor = 
+	vtkSmartPointer<vtkRenderWindowInteractor>::New();
+
+interactor->SetRenderWindow( viewer->GetRenderWindow() ); 
+viewer->SetupInteractor(interactor);
+viewer->SetInputConnection(reader->GetOutputPort());
+viewer->SetSlice(130);
+viewer->GetRenderer()->ResetCamera();
+viewer->Render();
+interactor->Start();
  
   return EXIT_SUCCESS;
 }
