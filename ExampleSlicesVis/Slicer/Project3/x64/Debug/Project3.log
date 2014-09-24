@@ -1,5 +1,5 @@
-﻿Build started 15/08/2014 13:07:32.
-     1>Project "C:\Users\Solomon\Documents\visual studio 2012\Projects\Project3\Project3\Project3.vcxproj" on node 2 (Rebuild target(s)).
+﻿Build started 23/09/2014 23:27:34.
+     1>Project "C:\Users\Solomon\Documents\Visual Studio 2012\Projects\Project3\Project3\Project3.vcxproj" on node 2 (Rebuild target(s)).
      1>C:\Program Files (x86)\MSBuild\Microsoft.Cpp\v4.0\V110\Microsoft.CppBuild.targets(346,5): warning MSB8004: Output Directory does not end with a trailing slash.  This build instance will add the slash as it is required to allow proper evaluation of the Output Directory.
      1>ClCompile:
          C:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\bin\x86_amd64\CL.exe /c /IC:\Users\Solomon\Documents\Leap\LeapDeveloperKit_2.0.2+16391_win\LeapSDK\include /I"C:\Program Files\VTK\include\vtk-6.2" /Zi /nologo /W3 /WX- /Od /D _MBCS /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Fo"x64\Debug\\" /Fd"x64\Debug\vc110.pdb" /Gd /TP /errorReport:prompt ..\Slicer_SRC\myVtkInteractorStyleImage.cpp ..\Slicer_SRC\ReadImageData.cpp ..\Slicer_SRC\SlicerLeapListener.cpp
@@ -12,8 +12,8 @@
          x64\Debug\ReadImageData.obj
          x64\Debug\SlicerLeapListener.obj
          Project3.vcxproj -> C:\Users\Solomon\Documents\Visual Studio 2012\Projects\Project3\\bin\Slicer.exe
-     1>Done Building Project "C:\Users\Solomon\Documents\visual studio 2012\Projects\Project3\Project3\Project3.vcxproj" (Rebuild target(s)).
+     1>Done Building Project "C:\Users\Solomon\Documents\Visual Studio 2012\Projects\Project3\Project3\Project3.vcxproj" (Rebuild target(s)).
 
 Build succeeded.
 
-Time Elapsed 00:00:03.99
+Time Elapsed 00:00:05.24

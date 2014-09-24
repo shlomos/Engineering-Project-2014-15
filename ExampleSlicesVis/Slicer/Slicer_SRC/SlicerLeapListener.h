@@ -3,6 +3,7 @@
 
 #include "Leap.h"
 #include "myVtkInteractorStyleImage.h"
+#include <algorithm>
 
 using namespace Leap;
 

@@ -49,13 +49,14 @@ void SlicerLeapListener::onFrame(const Controller& controller) {
 			//cout << "im sad!"<<endl;
 			int dis = std::max(0,std::min(_InteractorStyle->getMaxSlice(),(int)(realDis/150.0f*_InteractorStyle->getMaxSlice())));
 			//cout << "im very very sad!"<<endl;
-			std::cout << "try set slice to " << dis<<  std::endl;
+			//std::cout << "try set slice to " << dis<<  std::endl;
 			//Assume screen is 15 cm after leap
 			//std::cout << "finger is at " << frontmost.z
 			//	<< " pointer is " << dis << "cm from screen." << std::endl;
 			this->_InteractorStyle->setSlice(dis);
+			this->_InteractorStyle->_x_position = frontmost.x;
+			this->_InteractorStyle->_y_position = frontmost.y;
 			//cout << "im desperate!"<<endl;
-			//cout << this->_InteractorStyle->GetInteractor()->InvokeEvent(MY_LEAP_EVENT,(void*)dis) <<endl;
 		}
 	}
 

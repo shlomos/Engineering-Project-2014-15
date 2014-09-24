@@ -27,6 +27,13 @@
     <ClInclude Include="..\Slicer_SRC\myVtkInteractorStyleImage.h" />
     <ClInclude Include="..\Slicer_SRC\SlicerLeapListener.h" />
   </ItemGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{2C450875-5532-40D5-A5DF-FB9904115411}</ProjectGuid>
     <RootNamespace>Slicer</RootNamespace>
@@ -84,6 +91,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>C:\Users\Solomon\Documents\Leap\LeapDeveloperKit_2.0.2+16391_win\LeapSDK\include;C:\Program Files\VTK\include\vtk-6.2;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>

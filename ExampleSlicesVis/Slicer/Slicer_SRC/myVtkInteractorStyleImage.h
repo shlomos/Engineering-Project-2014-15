@@ -13,6 +13,8 @@
 #include <vtkTextMapper.h>
 #include <vtkInteractorStyleImage.h>
 #include <vtkEventForwarderCommand.h>
+#include <vtkDataSetMapper.h>
+#include <vtkImageMapToColors.h>
 
 // Define own interaction style
 class myVtkInteractorStyleImage : public vtkInteractorStyleImage
@@ -21,6 +23,9 @@ public:
 	static myVtkInteractorStyleImage* New();
 	vtkTypeMacro(myVtkInteractorStyleImage, vtkInteractorStyleImage);
 	vtkSmartPointer<vtkCallbackCommand> leapCallback;
+	float _x_position, _y_position; // TODO: create getters and setters and move to protected.
+	int _window_size_x;
+	int _window_size_y;
 
 protected:
 	vtkSmartPointer<vtkImageViewer2> _ImageViewer;
@@ -29,7 +34,10 @@ protected:
 	int _MinSlice;
 	int _MaxSlice;
 	int _Slice;
-	bool _isSliceLocked;
+	vtkSmartPointer<vtkImageMapToColors> _selection;
+	vtkSmartPointer<vtkImageActor> _selection_actor;
+	vtkSmartPointer<vtkStructuredPoints> _3D_selection;
+	bool _isSliceLocked, _isPainting;
 	virtual void SetInteractor(vtkRenderWindowInteractor* interactor);// method I overrode. 
 	static void ProcessLeapEvents(vtkObject* object,
 		unsigned long event,
@@ -37,7 +45,7 @@ protected:
 		void* calldata);
 public:
 	myVtkInteractorStyleImage::myVtkInteractorStyleImage();
-	void SetImageViewer(vtkImageViewer2* imageViewer);
+	void SetImageViewer(vtkImageViewer2* imageViewer, int size_x, int size_y, vtkSmartPointer<vtkStructuredPoints> selection, vtkSmartPointer<vtkImageActor> selection_actor);
 	void SetStatusMapper(vtkTextMapper* statusMapper);
 	void setSlice(int slice);
 	int getMaxSlice();
@@ -51,6 +59,7 @@ protected:
 	virtual void OnMouseWheelForward();
 	virtual void OnMouseWheelBackward();
 	void lockSlice(bool state);
+	void startPainting(bool state);
 };
 
 #endif
