@@ -2,6 +2,7 @@
 
 void SlicerLeapListener::SetImageViewer(myVtkInteractorStyleImage* interactorStyle) {
 	_InteractorStyle = interactorStyle;
+
 }
 
 
@@ -33,31 +34,49 @@ void SlicerLeapListener::onFrame(const Controller& controller) {
 	if (!frame.hands().isEmpty()) {
 		// Get the first hand
 		const Hand hand = frame.hands()[0];
-
+		FingerList fingers = hand.fingers();
+		Vector frontmost;
+		bool paint,move = false;
 		// Check if the hand has any fingers
-		const FingerList fingers = hand.fingers();
 		if (!fingers.isEmpty()) {
-			// Calculate the hand's average finger tip position
-			Vector avgPos;
-			for (int i = 0; i < fingers.count(); ++i) {
-				avgPos += fingers[i].tipPosition();
+			for(Finger fin:fingers.extended()){
+				if(fin.type() == Finger::TYPE_THUMB){
+					paint = true;
+				}else if(fin.type() == Finger::TYPE_MIDDLE){
+					move = true;
+				}
 			}
-			avgPos /= (float)fingers.count();
-			Vector *aPoint = new Vector(0.0f, 0.0f, -150.0f);
-			Vector frontmost = frame.pointables().frontmost().tipPosition();
-			float realDis = (frontmost.z-aPoint->z);
-			//cout << "im sad!"<<endl;
-			int dis = std::max(0,std::min(_InteractorStyle->getMaxSlice(),(int)(realDis/150.0f*_InteractorStyle->getMaxSlice())));
-			//cout << "im very very sad!"<<endl;
-			//std::cout << "try set slice to " << dis<<  std::endl;
-			//Assume screen is 15 cm after leap
-			//std::cout << "finger is at " << frontmost.z
-			//	<< " pointer is " << dis << "cm from screen." << std::endl;
-			this->_InteractorStyle->setSlice(dis);
-			this->_InteractorStyle->_x_position = frontmost.x;
-			this->_InteractorStyle->_y_position = frontmost.y;
-			//cout << "im desperate!"<<endl;
+			frontmost = fingers.fingerType(Finger::TYPE_INDEX)[0].tipPosition();
+			this->_InteractorStyle->SetPainting(paint);
+			this->_InteractorStyle->lockSlice(!move);
+		}else{
+			ToolList tools = frame.tools();
+			frontmost = tools.frontmost().tipPosition();
+			if(tools.count() > 1){
+				this->_InteractorStyle->SetPainting(true);
+			}else{
+				this->_InteractorStyle->SetPainting(false);
+			}
 		}
+		// Calculate the hand's average finger tip position
+		//Vector avgPos;
+		//for (int i = 0; i < fingers.count(); ++i) {
+		//	avgPos += fingers[i].tipPosition();
+		//}
+		//avgPos /= (float)fingers.count();
+		Vector *aPoint = new Vector(0.0f, 0.0f, -150.0f);
+		float realDis = (frontmost.z-aPoint->z);
+		//cout << "im sad!"<<endl;
+		int dis = std::max(0,std::min(_InteractorStyle->getMaxSlice(),(int)(realDis/150.0f*_InteractorStyle->getMaxSlice())));
+		//cout << "im very very sad!"<<endl;
+		//std::cout << "try set slice to " << dis<<  std::endl;
+		//Assume screen is 15 cm after leap
+		//std::cout << "finger is at " << frontmost.z
+		//	<< " pointer is " << dis << "cm from screen." << std::endl;
+		this->_InteractorStyle->setSlice(dis);
+		this->_InteractorStyle->_x_position = frontmost.x;
+		this->_InteractorStyle->_y_position = frontmost.y;
+		//cout << "im desperate!"<<endl;
 	}
 
 	if (!frame.hands().isEmpty()) {

@@ -40,6 +40,7 @@ void myVtkInteractorStyleImage::SetImageViewer(vtkImageViewer2* imageViewer,std:
 	leapCallback->SetClientData(this);
 	_Slice = _MinSlice;
 	_outputName = outputName;
+	_hfMode=false;
 	_isSliceLocked = false;
 	_isPainting = false;
 	_selection_actor = selection_actor;
@@ -51,13 +52,9 @@ void myVtkInteractorStyleImage::SetStatusMapper(vtkTextMapper* statusMapper) {
 }
 
 void myVtkInteractorStyleImage::setSlice(int slice){
-	if(this->Interactor->GetShiftKey()){
+	if(this->Interactor->GetShiftKey()  || (!_isSliceLocked && _hfMode)){
 		this->_Slice = slice;
 	}
-}
-
-void myVtkInteractorStyleImage::startPainting(bool state) {
-	//todo: fill it?
 }
 
 int myVtkInteractorStyleImage::getMaxSlice(){
@@ -110,6 +107,16 @@ void myVtkInteractorStyleImage::ToggleOrientation() {
 	_ImageViewer->Render();
 }
 
+void myVtkInteractorStyleImage::SetPainting(bool state) {
+	cout << "Pinting is: "<< state <<endl;
+	this->_isPainting = state;
+}
+
+void myVtkInteractorStyleImage::lockSlice(bool state){
+	cout << "slice lock state is " <<state<<endl;
+	this->_isSliceLocked = state;
+}
+
 void myVtkInteractorStyleImage::WriteToFile() {
 	cout << "Writing segmentation to file..." << endl;
 	vtkSmartPointer<vtkStructuredPointsWriter> writer=
@@ -119,6 +126,8 @@ void myVtkInteractorStyleImage::WriteToFile() {
 	writer->Write();
 	cout << "Done." << endl;
 }
+
+void myVtkInteractorStyleImage::OnKeyUp() {}
 
 void myVtkInteractorStyleImage::OnKeyDown() {
 	std::string key = this->GetInteractor()->GetKeySym();
@@ -138,24 +147,11 @@ void myVtkInteractorStyleImage::OnKeyDown() {
 	}else if(key.compare("o") == 0) {
 		cout << "Orientation key was pressed." << endl;
 		ToggleOrientation();
+	}else if(key.compare("f") == 0) {
+		cout << "Hands free mode: " << (_hfMode?"ON":"OFF") << endl;
+		_hfMode=!_hfMode;
 	}else if(key.compare("s") == 0) {
 		WriteToFile();
-	}
-	else if(key.compare("shift") == 0) {
-		cout << "Shift key was pressed." << endl;
-		lockSlice(false);
-	}
-	else if (key.compare("Ctrl") == 0) {
-		cout << "control key was pressed. Doing something..." << endl;
-	}
-	// forward event
-}
-
-void myVtkInteractorStyleImage::OnKeyUp() {
-	std::string key = this->GetInteractor()->GetKeySym();
-	if(key.compare("shift") == 0) {
-		cout << "shift key was released." << endl;
-		lockSlice(true);
 	}
 	// forward event
 }
@@ -178,10 +174,6 @@ void myVtkInteractorStyleImage::OnMouseWheelBackward() {
 	// don't forward events, otherwise the image will be zoomed 
 	// in case another interactorstyle is used (e.g. trackballstyle, ...)
 	// vtkInteractorStyleImage::OnMouseWheelBackward();
-}
-
-void myVtkInteractorStyleImage::lockSlice(bool state){
-	_isSliceLocked = state;
 }
 
 void myVtkInteractorStyleImage::SetInteractor(vtkRenderWindowInteractor *i)
@@ -317,19 +309,18 @@ void myVtkInteractorStyleImage::ProcessLeapEvents(vtkObject* object, unsigned lo
 	pd->SetPoints(new_pts);
 
 	// When SHIFT key is pressed, udpate slice
-	if (intStyle->Interactor->GetShiftKey()){
-		cout << "Entered Shift" << endl;
+	if (intStyle->Interactor->GetShiftKey() || (intStyle->_hfMode && !intStyle->_isSliceLocked)){
+		cout << "Shift pressed" << endl;
 		intStyle->_ImageViewer->SetSlice(intStyle->_Slice);
 		int displayExtent[6];
 		intStyle->_ImageViewer->GetImageActor()->GetDisplayExtent(displayExtent);
 		intStyle->_selection_actor->SetDisplayExtent(displayExtent);
-		cout << "Exit shift." << endl;
 	}
 
 	int *selExt = selection_structured_points->GetExtent();
 
 	// check whether to start drawing on screen.
-	if (intStyle->Interactor->GetControlKey()) {
+	if (intStyle->Interactor->GetControlKey() || (intStyle->_hfMode && intStyle->_isPainting)) {
 		cout << "ctrl pressed" <<endl;
 		vtkPointData* cellData = selection_structured_points->GetPointData();
 		vtkIntArray* selection_scalars = (vtkIntArray*) cellData->GetScalars();

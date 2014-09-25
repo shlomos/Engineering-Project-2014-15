@@ -35,7 +35,9 @@ protected:
 	std::string _outputName;
 	int _drawSize;
 	vtkSmartPointer<vtkImageActor> _selection_actor;
-	bool _isSliceLocked, _isPainting;
+	bool _hfMode;
+	bool _isSliceLocked;
+	bool _isPainting;
 	virtual void SetInteractor(vtkRenderWindowInteractor* interactor);// method I overrode. 
 	static void ProcessLeapEvents(vtkObject* object,
 		unsigned long event,
@@ -46,6 +48,8 @@ public:
 	void SetImageViewer(vtkImageViewer2* imageViewer,std::string outputName, vtkSmartPointer<vtkImageActor> selection_actor);
 	void SetStatusMapper(vtkTextMapper* statusMapper);
 	void setSlice(int slice);
+	void lockSlice(bool state);
+	void SetPainting(bool state);
 	int getMaxSlice();
 
 protected:
@@ -57,8 +61,6 @@ protected:
 	virtual void OnKeyUp();
 	virtual void OnMouseWheelForward();
 	virtual void OnMouseWheelBackward();
-	void lockSlice(bool state);
-	void startPainting(bool state);
 };
 
 #endif

@@ -11,7 +11,7 @@ class SlicerLeapListener : public Listener {
 public:
 
 	myVtkInteractorStyleImage* _InteractorStyle;
-
+	float _lastZ;
 	void SetImageViewer(myVtkInteractorStyleImage* interactorStyle);
 	void onInit(const Controller& controller);
 	void onConnect(const Controller& controller);
