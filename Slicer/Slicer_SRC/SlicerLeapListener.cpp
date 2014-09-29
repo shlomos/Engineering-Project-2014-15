@@ -36,7 +36,8 @@ void SlicerLeapListener::onFrame(const Controller& controller) {
 		const Hand hand = frame.hands()[0];
 		FingerList fingers = hand.fingers();
 		Vector frontmost;
-		bool paint,move = false;
+		bool paint = false;
+		bool move = false;
 		// Check if the hand has any fingers
 		if (!fingers.isEmpty()) {
 			for(Finger fin:fingers.extended()){
@@ -76,6 +77,7 @@ void SlicerLeapListener::onFrame(const Controller& controller) {
 		this->_InteractorStyle->setSlice(dis);
 		this->_InteractorStyle->_x_position = frontmost.x;
 		this->_InteractorStyle->_y_position = frontmost.y;
+		this->_InteractorStyle->_z_position = frontmost.z;
 		//cout << "im desperate!"<<endl;
 	}
 

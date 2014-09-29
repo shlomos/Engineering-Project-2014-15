@@ -13,6 +13,13 @@
 #define MAX_DRAW_SIZE 50
 #define NOT_ACTIVE 0
 
+enum
+{
+	SLICE_ORIENTATION_YZ = 0,
+	SLICE_ORIENTATION_XZ = 1,
+	SLICE_ORIENTATION_XY = 2
+};
+
 
 
 #endif

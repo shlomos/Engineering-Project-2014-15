@@ -94,6 +94,7 @@ vtkSmartPointer<vtkActor> createCrosshair(double *size){
 	linesPolyData->GetCellData()->SetScalars(colors);
 	vtkSmartPointer<vtkPolyDataMapper> crosshair = vtkSmartPointer<vtkPolyDataMapper>::New();
 	crosshair->SetInputData(linesPolyData);
+	
 	crosshair->Update();
 	vtkSmartPointer<vtkActor> crosshairA = vtkSmartPointer<vtkActor>::New();
 	crosshairA->GetProperty()->SetLineWidth(2);

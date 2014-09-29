@@ -2,6 +2,7 @@
 #define _MY_VTK_INTERCTOR_IMAGE_STYLE_
 
 #include <vtkSmartPointer.h>
+#include <stdlib.h>
 #include <vtkPolyDataMapper.h>
 #include <vtkStructuredPointsReader.h>
 #include <vtkImageViewer2.h>
@@ -23,7 +24,7 @@ public:
 	static myVtkInteractorStyleImage* New();
 	vtkTypeMacro(myVtkInteractorStyleImage, vtkInteractorStyleImage);
 	vtkSmartPointer<vtkCallbackCommand> leapCallback;
-	float _x_position, _y_position; // TODO: create getters and setters and move to protected.
+	float _x_position, _y_position, _z_position; // TODO: create getters and setters and move to protected.
 
 protected:
 	vtkSmartPointer<vtkImageViewer2> _ImageViewer;
@@ -51,6 +52,8 @@ public:
 	void lockSlice(bool state);
 	void SetPainting(bool state);
 	int getMaxSlice();
+	double* redrawCrossHair();
+	void applyCameraFixes();
 
 protected:
 	void MoveSliceForward();

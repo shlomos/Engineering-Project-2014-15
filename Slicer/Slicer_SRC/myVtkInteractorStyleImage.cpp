@@ -23,6 +23,8 @@
 #include <vtkPointPicker.h>
 #include <vtkImageMapToColors.h>
 #include <vtkPropPicker.h>
+#include <algorithm>
+#include <vtkCamera.h>
 
 
 myVtkInteractorStyleImage::myVtkInteractorStyleImage()
@@ -33,10 +35,11 @@ myVtkInteractorStyleImage::myVtkInteractorStyleImage()
 
 void myVtkInteractorStyleImage::SetImageViewer(vtkImageViewer2* imageViewer,std::string outputName, vtkSmartPointer<vtkImageActor> selection_actor) {
 	_ImageViewer = imageViewer;
-	_orientation   = imageViewer->GetSliceOrientation();
+	_ImageViewer->SetSliceOrientation(SLICE_ORIENTATION_XY);
+	_orientation = -SLICE_ORIENTATION_XY;
 	_MinSlice	   = imageViewer->GetSliceMin();
 	_MaxSlice      = imageViewer->GetSliceMax();
-	_drawSize= DEFAULT_DRAW_SIZE;
+	_drawSize = DEFAULT_DRAW_SIZE;
 	leapCallback->SetClientData(this);
 	_Slice = _MinSlice;
 	_outputName = outputName;
@@ -90,21 +93,78 @@ void myVtkInteractorStyleImage::MoveSliceBackward() {
 }
 
 void myVtkInteractorStyleImage::ToggleOrientation() {
-	_orientation = (_orientation+1)%3;
-	switch(_orientation){
-	case 0:
-		_ImageViewer->SetSliceOrientationToXY();
-		break;
-	case 1:
-		_ImageViewer->SetSliceOrientationToXZ();
-		break;
-	case 2:
-		_ImageViewer->SetSliceOrientationToYZ();
-		break;
+	vtkActor* selection_actor;
+	vtkActor* cross_actor = _ImageViewer->GetRenderer()->GetActors()->GetLastActor();
+	_orientation = _orientation + 1;
+	if (_orientation == 1){
+		_orientation = -2;
 	}
-	cout << "Slice orientation: " << _orientation << endl;
+	int oooyea = std::abs(_orientation);
+	_ImageViewer->SetSliceOrientation(oooyea);
+	redrawCrossHair();
+	int displayExtent[6];
+	_ImageViewer->GetImageActor()->GetDisplayExtent(displayExtent);
+	_selection_actor->SetDisplayExtent(displayExtent);
+	((vtkImageActor*)cross_actor)->SetDisplayExtent(displayExtent);
+	//applyCameraFixes();
+	cout << "Slice GetSliceOrientation: " << _ImageViewer->GetSliceOrientation() << endl;
 	_ImageViewer->SetSlice(0);
 	_ImageViewer->Render();
+
+
+}
+
+double* myVtkInteractorStyleImage::redrawCrossHair() {
+	vtkActor* cross_actor = _ImageViewer->GetRenderer()->GetActors()->GetLastActor();
+	vtkSmartPointer<vtkPolyData> pd = (vtkPolyData *)((vtkPolyDataMapper*)(cross_actor->GetMapper())->GetInputAsDataSet());
+
+	vtkSmartPointer<vtkPoints> new_pts =
+		vtkSmartPointer<vtkPoints>::New();
+	double* size = ((vtkStructuredPoints*)(((vtkImageMapToColors*)_selection_actor->GetMapper()->GetInputAlgorithm()))->GetInput())->GetBounds();
+	double cross_x = 0.0;
+	double cross_y = 0.0;
+	double cross_z = 0.0;
+
+	switch (_ImageViewer->GetSliceOrientation()) {
+	case SLICE_ORIENTATION_YZ:
+		cross_y = std::max(size[2], std::min(SCALE_FACTOR*(_x_position+450), size[3]));
+		cross_z = std::max(size[4], std::min(SCALE_FACTOR*(_y_position+350), size[5]));
+		new_pts->InsertNextPoint(size[1], cross_y, size[4]); // vertical line
+		new_pts->InsertNextPoint(size[1], cross_y, size[5]); // vertical line
+		new_pts->InsertNextPoint(size[1], size[2], cross_z); // horizontal line
+		new_pts->InsertNextPoint(size[1], size[3], cross_z); // horizontal line
+		pd->SetPoints(new_pts);
+		break;
+	case SLICE_ORIENTATION_XZ:
+		cross_z = std::max(size[4], std::min(SCALE_FACTOR*(_y_position + 350), size[5]));
+		cross_x = std::max(size[0], std::min(SCALE_FACTOR*_x_position, size[1]));
+		new_pts->InsertNextPoint(size[0], size[2], cross_z); // vertical line
+		new_pts->InsertNextPoint(size[1], size[2], cross_z); // vertical line 
+		new_pts->InsertNextPoint(cross_x, size[2], size[4]); // horizontal line
+		new_pts->InsertNextPoint(cross_x, size[2], size[5]); // horizontal line
+		pd->SetPoints(new_pts);
+		break;
+	case SLICE_ORIENTATION_XY:
+		cross_x = std::max(size[0], std::min(SCALE_FACTOR*_x_position, size[1]));
+		cross_y = std::max(size[2], std::min(SCALE_FACTOR*(_y_position + 150), size[3]));
+		new_pts->InsertNextPoint(size[0], cross_y, size[5]);
+		new_pts->InsertNextPoint(size[1], cross_y, size[5]);
+		new_pts->InsertNextPoint(cross_x, size[2], size[5]);
+		new_pts->InsertNextPoint(cross_x, size[3], size[5]);
+		pd->SetPoints(new_pts);
+		break;
+	}
+
+	cross_actor->SetOrigin(_selection_actor->GetOrigin());
+	cross_actor->SetScale(_selection_actor->GetScale());
+	cross_actor->SetPosition(_selection_actor->GetPosition());
+
+	int displayExtent[6];
+	_ImageViewer->GetImageActor()->GetDisplayExtent(displayExtent);
+	((vtkImageActor*)cross_actor)->SetDisplayExtent(displayExtent);
+	_selection_actor->SetDisplayExtent(displayExtent);
+	double* temp = new double[2]{ cross_x, cross_y };
+	return temp;
 }
 
 void myVtkInteractorStyleImage::SetPainting(bool state) {
@@ -152,6 +212,9 @@ void myVtkInteractorStyleImage::OnKeyDown() {
 		_hfMode=!_hfMode;
 	}else if(key.compare("s") == 0) {
 		WriteToFile();
+	}
+	else if (key.compare("p") == 0) {
+		return;
 	}
 	// forward event
 }
@@ -271,28 +334,9 @@ void myVtkInteractorStyleImage::ProcessLeapEvents(vtkObject* object, unsigned lo
 	//cout << "Got a leap event!"<< endl;
 	vtkSmartPointer<myVtkInteractorStyleImage> intStyle = 
 		reinterpret_cast<myVtkInteractorStyleImage*>(clientdata);
-	vtkRendererCollection* rc = intStyle->_ImageViewer->GetRenderWindow()->GetRenderers();
-	rc->InitTraversal(); // initialize the traversal to start from 0
-	vtkActor* cross_actor;
-	vtkActor* selection_actor;
-	for (int i = 0; i < rc->GetNumberOfItems(); i++){
-		if (i == SELECTION_LAYER) {
-			vtkActorCollection* col = rc->GetNextItem()->GetActors();
-			cross_actor = col->GetLastActor();
-			selection_actor = col->GetLastActor();
-			//cout << "selection actor" <<selection_actor << endl;
-			continue;
-		}// else if (i == CROSS_LAYER){
-		//	cross_actor = rc->GetNextItem()->GetActors()->GetLastActor();
-		//	break;
-		//}
-		rc->GetNextItem()->GetActors()->GetNumberOfItems();
-	}
-	//cout << "searching for religion:"<<cross_actor<<endl;
+	vtkActor* cross_actor = intStyle->_ImageViewer->GetRenderer()->GetActors()->GetLastActor();
 	vtkSmartPointer<vtkPolyData> pd = (vtkPolyData *)((vtkPolyDataMapper*)(cross_actor->GetMapper())->GetInputAsDataSet());
-	//cout << "almost found jeezus" <<endl;
 	vtkSmartPointer<vtkImageMapToColors> selection_mapper = (vtkImageMapToColors*)intStyle->_selection_actor->GetMapper()->GetInputAlgorithm();
-	//cout << "found jeezus" <<endl;
 	vtkSmartPointer<vtkStructuredPoints> selection_structured_points = (vtkStructuredPoints *)selection_mapper->GetInput();
 
 	double* size = selection_structured_points->GetBounds();
@@ -300,14 +344,11 @@ void myVtkInteractorStyleImage::ProcessLeapEvents(vtkObject* object, unsigned lo
 	// changing the crosshair
 	vtkSmartPointer<vtkPoints> new_pts =
 		vtkSmartPointer<vtkPoints>::New();
-	double cross_x = std::max(size[0],std::min(SCALE_FACTOR*intStyle->_x_position,size[1]));
-	double cross_y = std::max(size[2],std::min(SCALE_FACTOR*(intStyle->_y_position+150),size[3]));
-	new_pts->InsertNextPoint(size[0], cross_y, size[5]);
-	new_pts->InsertNextPoint(size[1], cross_y, size[5]);
-	new_pts->InsertNextPoint(cross_x, size[2], size[5]);
-	new_pts->InsertNextPoint(cross_x, size[3], size[5]);
-	pd->SetPoints(new_pts);
 
+	double* temp = intStyle->redrawCrossHair();
+	double cross_x = temp[0];
+	double cross_y = temp[1];
+	delete temp;
 	// When SHIFT key is pressed, udpate slice
 	if (intStyle->Interactor->GetShiftKey() || (intStyle->_hfMode && !intStyle->_isSliceLocked)){
 		cout << "Shift pressed" << endl;
@@ -324,7 +365,7 @@ void myVtkInteractorStyleImage::ProcessLeapEvents(vtkObject* object, unsigned lo
 		cout << "ctrl pressed" <<endl;
 		vtkPointData* cellData = selection_structured_points->GetPointData();
 		vtkIntArray* selection_scalars = (vtkIntArray*) cellData->GetScalars();
-		double x[3]={cross_x,cross_y,size[5]};
+		double x[3] = {cross_x,cross_y,size[5]};
 		int ijk[3];
 		double pCoord[3];
 		//selection_structured_points->GetCellBounds(cellId,bounds);
@@ -356,11 +397,11 @@ void myVtkInteractorStyleImage::ProcessLeapEvents(vtkObject* object, unsigned lo
 		da->SetValue(3, 255);
 		da->SetValue(4, 0);
 		da->SetValue(5, 0);
-	}else if(intStyle->Interactor->GetAltKey()){
+	} else if(intStyle->Interactor->GetAltKey()){
 		cout << "ctrl pressed" <<endl;
 		vtkPointData* cellData = selection_structured_points->GetPointData();
 		vtkIntArray* selection_scalars = (vtkIntArray*) cellData->GetScalars();
-		double x[3]={cross_x,cross_y,size[5]};
+		double x[3]={cross_x,cross_y,size[1]};
 		int ijk[3];
 		double pCoord[3];
 		selection_structured_points->ComputeStructuredCoordinates(x,ijk,pCoord);
