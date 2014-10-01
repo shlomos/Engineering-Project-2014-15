@@ -93,7 +93,6 @@ void myVtkInteractorStyleImage::MoveSliceBackward() {
 }
 
 void myVtkInteractorStyleImage::ToggleOrientation() {
-	vtkActor* selection_actor;
 	vtkActor* cross_actor = _ImageViewer->GetRenderer()->GetActors()->GetLastActor();
 	_orientation = _orientation + 1;
 	if (_orientation == 1){
@@ -124,7 +123,7 @@ double* myVtkInteractorStyleImage::redrawCrossHair() {
 	double cross_x = 0.0;
 	double cross_y = 0.0;
 	double cross_z = 0.0;
-
+	double* temp;
 	switch (_ImageViewer->GetSliceOrientation()) {
 	case SLICE_ORIENTATION_YZ:
 		cross_y = std::max(size[2], std::min(SCALE_FACTOR*(_x_position+450), size[3]));
@@ -134,6 +133,7 @@ double* myVtkInteractorStyleImage::redrawCrossHair() {
 		new_pts->InsertNextPoint(size[1], size[2], cross_z); // horizontal line
 		new_pts->InsertNextPoint(size[1], size[3], cross_z); // horizontal line
 		pd->SetPoints(new_pts);
+		temp= new double[3]{ cross_z, cross_y,size[1] };
 		break;
 	case SLICE_ORIENTATION_XZ:
 		cross_z = std::max(size[4], std::min(SCALE_FACTOR*(_y_position + 350), size[5]));
@@ -143,6 +143,7 @@ double* myVtkInteractorStyleImage::redrawCrossHair() {
 		new_pts->InsertNextPoint(cross_x, size[2], size[4]); // horizontal line
 		new_pts->InsertNextPoint(cross_x, size[2], size[5]); // horizontal line
 		pd->SetPoints(new_pts);
+		temp = new double[3]{ cross_x, cross_z,size[2] };
 		break;
 	case SLICE_ORIENTATION_XY:
 		cross_x = std::max(size[0], std::min(SCALE_FACTOR*_x_position, size[1]));
@@ -152,6 +153,7 @@ double* myVtkInteractorStyleImage::redrawCrossHair() {
 		new_pts->InsertNextPoint(cross_x, size[2], size[5]);
 		new_pts->InsertNextPoint(cross_x, size[3], size[5]);
 		pd->SetPoints(new_pts);
+		temp = new double[3]{ cross_x, cross_y,size[5] };
 		break;
 	}
 
@@ -163,7 +165,6 @@ double* myVtkInteractorStyleImage::redrawCrossHair() {
 	_ImageViewer->GetImageActor()->GetDisplayExtent(displayExtent);
 	((vtkImageActor*)cross_actor)->SetDisplayExtent(displayExtent);
 	_selection_actor->SetDisplayExtent(displayExtent);
-	double* temp = new double[2]{ cross_x, cross_y };
 	return temp;
 }
 
@@ -346,8 +347,9 @@ void myVtkInteractorStyleImage::ProcessLeapEvents(vtkObject* object, unsigned lo
 		vtkSmartPointer<vtkPoints>::New();
 
 	double* temp = intStyle->redrawCrossHair();
-	double cross_x = temp[0];
-	double cross_y = temp[1];
+	double cross_1 = temp[0];
+	double cross_2 = temp[1];
+	double cross_3 = temp[2];
 	delete temp;
 	// When SHIFT key is pressed, udpate slice
 	if (intStyle->Interactor->GetShiftKey() || (intStyle->_hfMode && !intStyle->_isSliceLocked)){
@@ -365,26 +367,86 @@ void myVtkInteractorStyleImage::ProcessLeapEvents(vtkObject* object, unsigned lo
 		cout << "ctrl pressed" <<endl;
 		vtkPointData* cellData = selection_structured_points->GetPointData();
 		vtkIntArray* selection_scalars = (vtkIntArray*) cellData->GetScalars();
-		double x[3] = {cross_x,cross_y,size[5]};
+		double x[3];
 		int ijk[3];
 		double pCoord[3];
-		//selection_structured_points->GetCellBounds(cellId,bounds);
-		selection_structured_points->ComputeStructuredCoordinates(x,ijk,pCoord);
-		cout << " cell IJK is: "<<ijk[0]<<":"<<ijk[1] <<":"<<intStyle->_Slice <<endl;
-		ijk[2]=intStyle->_Slice;
-		int ijk2[3]={0,0,ijk[2]};
-		int minX = std::max(0,ijk[0]-intStyle->_drawSize);
-		int maxX = std::min(ijk[0]+intStyle->_drawSize,selExt[1]);
-		int minY = std::max(ijk[1]-intStyle->_drawSize,0);
-		int maxY = std::min(ijk[1]+intStyle->_drawSize,selExt[3]);
-		for(int i=minX;i<maxX;i++){
-			ijk2[0]=i;
-			for(int j=minY;j<maxY;j++){
-				ijk2[1]=j;
-				vtkIdType cellId = selection_structured_points->ComputePointId(ijk2);
-				selection_scalars->SetValue(cellId,ACTIVE);
+		int ijk2[3];
+		int minX,maxX, minY, maxY;
+		switch (intStyle->_ImageViewer->GetSliceOrientation()) {
+		case SLICE_ORIENTATION_YZ:
+			x[0] = cross_3;
+			x[1] = cross_2;
+			x[2] = cross_1;
+			cout << x[0] << "," << x[1] << "," << x[2] << endl;
+			selection_structured_points->ComputeStructuredCoordinates(x, ijk, pCoord);
+			cout << " cell IJK is: " << ijk[0] << ":" << ijk[1] << ":" << intStyle->_Slice << endl;
+			ijk[0] = intStyle->_Slice;
+			ijk2[1] = 0;
+			ijk2[2] = 0;
+			ijk2[0] = ijk[0];
+			minX = std::max(0, ijk[2] - intStyle->_drawSize);
+			maxX = std::min(ijk[2] + intStyle->_drawSize, selExt[5]);
+			minY = std::max(ijk[1] - intStyle->_drawSize, 0);
+			maxY = std::min(ijk[1] + intStyle->_drawSize, selExt[3]);
+			for (int i = minX; i<maxX; i++){
+				ijk2[2] = i;
+				for (int j = minY; j<maxY; j++){
+					ijk2[1] = j;
+					vtkIdType cellId = selection_structured_points->ComputePointId(ijk2);
+					selection_scalars->SetValue(cellId, ACTIVE);
+				}
 			}
+			break;
+		case SLICE_ORIENTATION_XZ:
+			x[0] = cross_1;
+			x[1] = cross_3;
+			x[2] = cross_2;
+			cout << x[0] << "," << x[1] << "," << x[2] << endl;
+			selection_structured_points->ComputeStructuredCoordinates(x, ijk, pCoord);
+			cout << " cell IJK is: " << ijk[0] << ":" << ijk[1] << ":" << intStyle->_Slice << endl;
+			ijk[1] = intStyle->_Slice;
+			ijk2[0] = 0;
+			ijk2[1] = ijk[1];
+			ijk2[2] = 0;
+			minX = std::max(0, ijk[0] - intStyle->_drawSize);
+			maxX = std::min(ijk[0] + intStyle->_drawSize, selExt[1]);
+			minY = std::max(ijk[2] - intStyle->_drawSize, 0);
+			maxY = std::min(ijk[2] + intStyle->_drawSize, selExt[5]);
+			for (int i = minX; i<maxX; i++){
+				ijk2[0] = i;
+				for (int j = minY; j<maxY; j++){
+					ijk2[2] = j;
+					vtkIdType cellId = selection_structured_points->ComputePointId(ijk2);
+					selection_scalars->SetValue(cellId, ACTIVE);
+				}
+			}
+			break;
+		case SLICE_ORIENTATION_XY:
+			x[0] = cross_1;
+			x[1] = cross_2;
+			x[2] = cross_3;
+			cout << x[0] << "," << x[1] << "," << x[2] << endl;
+			selection_structured_points->ComputeStructuredCoordinates(x, ijk, pCoord);
+			cout << " cell IJK is: " << ijk[0] << ":" << ijk[1] << ":" << intStyle->_Slice << endl;
+			ijk[2] = intStyle->_Slice;
+			ijk2[0] = 0;
+			ijk2[1] = 0;
+			ijk2[2] = ijk[2];
+			minX = std::max(0, ijk[0] - intStyle->_drawSize);
+			maxX = std::min(ijk[0] + intStyle->_drawSize, selExt[1]);
+			minY = std::max(ijk[1] - intStyle->_drawSize, 0);
+			maxY = std::min(ijk[1] + intStyle->_drawSize, selExt[3]);
+			for (int i = minX; i<maxX; i++){
+				ijk2[0] = i;
+				for (int j = minY; j<maxY; j++){
+					ijk2[1] = j;
+					vtkIdType cellId = selection_structured_points->ComputePointId(ijk2);
+					selection_scalars->SetValue(cellId, ACTIVE);
+				}
+			}
+			break;
 		}
+		
 
 		//Update the underlying data object.
 		selection_scalars->Modified();
@@ -401,7 +463,7 @@ void myVtkInteractorStyleImage::ProcessLeapEvents(vtkObject* object, unsigned lo
 		cout << "ctrl pressed" <<endl;
 		vtkPointData* cellData = selection_structured_points->GetPointData();
 		vtkIntArray* selection_scalars = (vtkIntArray*) cellData->GetScalars();
-		double x[3]={cross_x,cross_y,size[1]};
+		double x[3] = { cross_1, cross_2, cross_3 };
 		int ijk[3];
 		double pCoord[3];
 		selection_structured_points->ComputeStructuredCoordinates(x,ijk,pCoord);
@@ -454,3 +516,6 @@ void myVtkInteractorStyleImage::ProcessLeapEvents(vtkObject* object, unsigned lo
 }
 
 vtkStandardNewMacro(myVtkInteractorStyleImage);
+
+
+
