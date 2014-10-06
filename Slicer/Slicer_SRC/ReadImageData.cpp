@@ -35,16 +35,10 @@
 #include <vtkLookupTable.h>
 #include <vtkImageActor.h>
 #include <vtkImageMapToColors.h>
+#include "Segmenter.h"
+#include <vtkActor2D.h>
+#include <vtkTextProperty.h>
 
-// helper class to format slice status message
-class StatusMessage {
-public:
-	static std::string Format(int slice, int maxSlice) {
-		std::stringstream tmp;
-		tmp << "Slice Number  " << slice + 1 << "/" << maxSlice + 1;
-		return tmp.str();
-	}
-};
 
 vtkSmartPointer<vtkActor> createCrosshair(double *size){
 	// points for crosshair
@@ -210,7 +204,43 @@ int main(int argc, char* argv[])
 	selectionA->GetMapper()->SetInputConnection(mapperSel->GetOutputPort());
 	selectionA->InterpolateOff();
 
-	myInteractorStyle->SetImageViewer(viewer, outputName, selectionA);
+	// slice status message
+   vtkSmartPointer<vtkTextProperty> sliceTextProp = vtkSmartPointer<vtkTextProperty>::New();
+   sliceTextProp->SetFontFamilyToCourier();
+   sliceTextProp->SetFontSize(20);
+   sliceTextProp->SetVerticalJustificationToBottom();
+   sliceTextProp->SetJustificationToLeft();
+ 
+   vtkSmartPointer<vtkTextMapper> sliceTextMapper = vtkSmartPointer<vtkTextMapper>::New();
+   std::string msg = StatusMessage::Format(viewer->GetSliceMin(), viewer->GetSliceMax(), viewer->GetSliceOrientation());
+   sliceTextMapper->SetInput(msg.c_str());
+   sliceTextMapper->SetTextProperty(sliceTextProp);
+ 
+   vtkSmartPointer<vtkActor2D> sliceTextActor = vtkSmartPointer<vtkActor2D>::New();
+   sliceTextActor->SetMapper(sliceTextMapper);
+   sliceTextActor->SetPosition(15, 10);
+ 
+   // usage hint message
+   vtkSmartPointer<vtkTextProperty> usageTextProp = vtkSmartPointer<vtkTextProperty>::New();
+   usageTextProp->SetFontFamilyToCourier();
+   usageTextProp->SetFontSize(14);
+   usageTextProp->SetVerticalJustificationToTop();
+   usageTextProp->SetJustificationToLeft();
+ 
+   vtkSmartPointer<vtkTextMapper> usageTextMapper = vtkSmartPointer<vtkTextMapper>::New();
+   usageTextMapper->SetInput("Options:\n - Hold Shift to scroll between slices.\n - Hold Ctrl to draw segmentation.\n - Hold Alt to erase segmentation.\n\n -- Press '1' and '2' to change brush's size\n -- Press 'o' to toggle orientation\n -- Press 's' to save segmentation\n -- Press 'f' for hands-free mode.");
+   usageTextMapper->SetTextProperty(usageTextProp);
+ 
+   vtkSmartPointer<vtkActor2D> usageTextActor = vtkSmartPointer<vtkActor2D>::New();
+   usageTextActor->SetMapper(usageTextMapper);
+   usageTextActor->GetPositionCoordinate()->SetCoordinateSystemToNormalizedDisplay();
+   usageTextActor->GetPositionCoordinate()->SetValue( 0.05, 0.95);
+
+	//Segmenter
+	//Segmenter* _segmenter = new Segmenter((vtkStructuredPoints*)(((vtkImageMapToColors*)selectionA->GetMapper()->GetInputAlgorithm()))->GetInput(), reader->GetOutput());
+
+	myInteractorStyle->SetImageViewer(viewer, outputName, selectionA, NULL);
+	myInteractorStyle->SetStatusMapper(sliceTextMapper);
 	viewer->SetupInteractor(renderWindowInteractor);
 	//mapperSel->SetScalarModeToUseCellData();
 
@@ -221,6 +251,8 @@ int main(int argc, char* argv[])
 	renderWindowInteractor->Initialize();
 	renderWindowInteractor->SetInteractorStyle(myInteractorStyle);
 	renderWindowInteractor->CreateRepeatingTimer(UPDATE_SLICE_TIMER);
+	viewer->GetRenderer()->AddActor2D(sliceTextActor);
+	viewer->GetRenderer()->AddActor2D(usageTextActor);
 	viewer->GetRenderer()->AddActor(selectionA);
 	viewer->GetRenderer()->AddActor(crosshair);
 	int displayExtent[6];

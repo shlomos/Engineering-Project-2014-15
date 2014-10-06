@@ -2,7 +2,7 @@
 
 #define _CONSTANTS_
 
-#define UPDATE_SLICE_TIMER 15
+#define UPDATE_SLICE_TIMER 5
 #define SCALE_FACTOR 1.2
 #define NUM_OF_LAYERS 1
 //#define CROSS_LAYER     (NUM_OF_LAYERS>1)?NUM_OF_LAYERS-1:-1
