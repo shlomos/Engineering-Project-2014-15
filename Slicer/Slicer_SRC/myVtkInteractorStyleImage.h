@@ -43,7 +43,6 @@
 #include <algorithm>
 #include <vtkCamera.h>
 #include <sstream>
-#include "Segmenter.h"
 
 
 // helper class to format slice status message
@@ -98,7 +97,7 @@ protected:
 
 public:
 	myVtkInteractorStyleImage::myVtkInteractorStyleImage();
-	void SetImageViewer(vtkImageViewer2* imageViewer, std::string outputName, vtkSmartPointer<vtkImageActor> selection_actor, Segmenter* _segmenter);
+	void SetImageViewer(vtkImageViewer2* imageViewer, std::string outputName, vtkSmartPointer<vtkImageActor> selection_actor);
 	void SetStatusMapper(vtkTextMapper* statusMapper);
 	void setSlice(int slice);
 	void lockSlice(bool state);

@@ -35,7 +35,7 @@ myVtkInteractorStyleImage::myVtkInteractorStyleImage()
 	leapCallback = vtkSmartPointer<vtkCallbackCommand>::New();
 	leapCallback->SetCallback(myVtkInteractorStyleImage::ProcessLeapEvents);
 }
-void myVtkInteractorStyleImage::SetImageViewer(vtkImageViewer2* imageViewer, std::string outputName, vtkSmartPointer<vtkImageActor> selection_actor, Segmenter* _segmenter) {
+void myVtkInteractorStyleImage::SetImageViewer(vtkImageViewer2* imageViewer, std::string outputName, vtkSmartPointer<vtkImageActor> selection_actor) {
 	_ImageViewer = imageViewer;
 	_ImageViewer->SetSliceOrientation(SLICE_ORIENTATION_XY);
 	_orientation = -SLICE_ORIENTATION_XY;

@@ -83,7 +83,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <algorithm>
 #include <vtkCamera.h>
 #include <sstream>
-#include "Segmenter.h"
 #include <limits>
 
 /** Perform graph cut based segmentation on an image. Image pixels can be only grayscale.
