@@ -376,7 +376,7 @@ void myVtkInteractorStyleImage::ProcessLeapEvents(vtkObject* object, unsigned lo
 				for (int j = minY; j<maxY; j++){
 					ijk2[1] = j;
 					vtkIdType cellId = selection_structured_points->ComputePointId(ijk2);
-					selection_scalars->SetValue(cellId, ACTIVE);
+					selection_scalars->SetValue(cellId, FOREGROUND);
 				}
 			}
 			break;
@@ -400,7 +400,7 @@ void myVtkInteractorStyleImage::ProcessLeapEvents(vtkObject* object, unsigned lo
 				for (int j = minY; j<maxY; j++){
 					ijk2[2] = j;
 					vtkIdType cellId = selection_structured_points->ComputePointId(ijk2);
-					selection_scalars->SetValue(cellId, ACTIVE);
+					selection_scalars->SetValue(cellId, FOREGROUND);
 				}
 			}
 			break;
@@ -424,7 +424,7 @@ void myVtkInteractorStyleImage::ProcessLeapEvents(vtkObject* object, unsigned lo
 				for (int j = minY; j<maxY; j++){
 					ijk2[1] = j;
 					vtkIdType cellId = selection_structured_points->ComputePointId(ijk2);
-					selection_scalars->SetValue(cellId, ACTIVE);
+					selection_scalars->SetValue(cellId, FOREGROUND);
 				}
 			}
 			break;
@@ -460,7 +460,7 @@ void myVtkInteractorStyleImage::ProcessLeapEvents(vtkObject* object, unsigned lo
 			for (int j = minY; j<maxY; j++){
 				ijk2[1] = j;
 				vtkIdType cellId = selection_structured_points->ComputePointId(ijk2);
-				selection_scalars->SetValue(cellId, NOT_ACTIVE);
+				selection_scalars->SetValue(cellId, BACKGROUND);
 			}
 		}
 		//Update the underlying data object.

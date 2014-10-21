@@ -186,10 +186,11 @@ int main(int argc, char* argv[])
 	int* extent = reader->GetOutput()->GetExtent();
 
 	vtkSmartPointer<vtkLookupTable> lut = vtkSmartPointer<vtkLookupTable>::New();
-	lut->SetNumberOfTableValues(2);
-	lut->SetRange(0,1);
-	lut->SetTableValue((vtkIdType)NOT_ACTIVE, 0, 1, 0, 0.0);
-	lut->SetTableValue((vtkIdType)ACTIVE, 1, 0, 0, 0.8);
+	lut->SetNumberOfTableValues(3);
+	lut->SetRange(0,2);
+	lut->SetTableValue((vtkIdType)NOT_ACTIVE, 0, 0, 0, 0.0);
+	lut->SetTableValue((vtkIdType)FOREGROUND,  1, 0, 0, 0.8);
+	lut->SetTableValue((vtkIdType)BACKGROUND, 0, 0, 1, 0.8);
 	lut->Build();
 	mapperSel->SetLookupTable(lut);
 	mapperSel->SetInputData(selection);
@@ -228,7 +229,7 @@ int main(int argc, char* argv[])
    usageTextProp->SetJustificationToLeft();
  
    vtkSmartPointer<vtkTextMapper> usageTextMapper = vtkSmartPointer<vtkTextMapper>::New();
-   usageTextMapper->SetInput("Options:\n - Hold Shift to scroll between slices.\n - Hold Ctrl to draw segmentation.\n - Hold Alt to erase segmentation.\n\n -- Press '1' and '2' to change brush's size\n -- Press 'o' to toggle orientation\n -- Press 's' to save segmentation\n -- Press 'f' for hands-free mode.");
+   usageTextMapper->SetInput("Options:\n - Hold Shift to scroll between slices.\n - Hold Ctrl to draw segmentation.\n - Hold Alt to mark background.\n\n -- Press '1' and '2' to change brush's size\n -- Press 'o' to toggle orientation\n -- Press 's' to save segmentation\n -- Press 'f' for hands-free mode.");
    usageTextMapper->SetTextProperty(usageTextProp);
  
    vtkSmartPointer<vtkActor2D> usageTextActor = vtkSmartPointer<vtkActor2D>::New();

@@ -7,11 +7,14 @@
 #define NUM_OF_LAYERS 1
 //#define CROSS_LAYER     (NUM_OF_LAYERS>1)?NUM_OF_LAYERS-1:-1
 #define SELECTION_LAYER std::max(0,NUM_OF_LAYERS-2)
-#define ACTIVE 1
+
+#define NOT_ACTIVE 0
+#define FOREGROUND 1
+#define BACKGROUND 2
 #define DEFAULT_DRAW_SIZE 2
 #define MIN_DRAW_SIZE 1
 #define MAX_DRAW_SIZE 50
-#define NOT_ACTIVE 0
+
 
 enum
 {
