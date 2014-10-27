@@ -43,6 +43,10 @@
 #include <algorithm>
 #include <vtkCamera.h>
 #include <sstream>
+#include "ImageGraphCut.h"
+
+#include <boost/thread.hpp>
+
 
 
 // helper class to format slice status message
@@ -71,6 +75,7 @@ class myVtkInteractorStyleImage : public vtkInteractorStyleImage
 {
 public:
 	static myVtkInteractorStyleImage* New();
+	virtual ~myVtkInteractorStyleImage();
 	vtkTypeMacro(myVtkInteractorStyleImage, vtkInteractorStyleImage);
 	vtkSmartPointer<vtkCallbackCommand> leapCallback;
 	float _x_position, _y_position, _z_position; // TODO: create getters and setters and move to protected.
@@ -78,6 +83,7 @@ public:
 protected:
 	vtkSmartPointer<vtkImageViewer2> _ImageViewer;
 	vtkTextMapper* _StatusMapper;
+	ImageGraphCut* _graph_cut;
 	int _orientation;
 	int _MinSlice;
 	int _MaxSlice;
@@ -94,11 +100,11 @@ protected:
 		void* clientdata,
 		void* calldata);
 
-
 public:
-	myVtkInteractorStyleImage::myVtkInteractorStyleImage();
+	myVtkInteractorStyleImage();
 	void SetImageViewer(vtkImageViewer2* imageViewer, std::string outputName, vtkSmartPointer<vtkImageActor> selection_actor);
 	void SetStatusMapper(vtkTextMapper* statusMapper);
+	void doSegment();
 	void setSlice(int slice);
 	void lockSlice(bool state);
 	void SetPainting(bool state);

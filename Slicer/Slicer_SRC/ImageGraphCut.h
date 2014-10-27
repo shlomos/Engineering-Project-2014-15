@@ -1,5 +1,4 @@
 /*
-Copyright (C) 2012 David Doria, daviddoria@gmail.com
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -85,48 +84,46 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <sstream>
 #include <limits>
 
+
 /** Perform graph cut based segmentation on an image. Image pixels can be only grayscale.
   */
 class ImageGraphCut
 {
 public:
 
-  ImageGraphCut(){}
+  //ImageGraphCut(TPixelDifferenceFunctor pixelDifferenceFunctor) :
+    //PixelDifferenceFunctor(pixelDifferenceFunctor){}
 
-  ImageGraphCut(TPixelDifferenceFunctor pixelDifferenceFunctor) :
-    PixelDifferenceFunctor(pixelDifferenceFunctor){}
-
-  TPixelDifferenceFunctor PixelDifferenceFunctor;
+  //TPixelDifferenceFunctor PixelDifferenceFunctor;
 
   /** This is a special type to keep track of the graph node labels. */
-  typedef itk::Image<unsigned int, 2> NodeImageType;
+  //typedef itk::Image<unsigned int, 2> NodeImageType;
 
   /** The type of the histograms. */
-  typedef itk::Statistics::Histogram< float,
-          itk::Statistics::DenseFrequencyContainer2 > HistogramType;
+  //typedef itk::Statistics::Histogram< float, itk::Statistics::DenseFrequencyContainer2 > HistogramType;
 
   /** The type of a list of pixels/indexes. */
-  typedef std::vector<itk::Index<2> > IndexContainer;
+  //typedef std::vector<itk::Index<2> > IndexContainer;
 
   /** Several initializations are done here. */
   void SetImage(vtkStructuredPoints* const image);
 
   /** Get the image that we are segmenting. */
-  TImage* GetImage();
+  //TImage* GetImage();
 
   /** Create and cut the graph (The main driver function). */
   void PerformSegmentation();
 
   /** Return a list of the selected (via scribbling) pixels. */
-  IndexContainer GetSources();
-  IndexContainer GetSinks();
+  //IndexContainer GetSources();
+ // IndexContainer GetSinks();
 
   /** Set the selected pixels. */
-  void SetSources(const IndexContainer& sources);
-  void SetSinks(const IndexContainer& sinks);
+ // void SetSources(const IndexContainer& sources);
+  //void SetSinks(const IndexContainer& sinks);
 
   /** Get the output of the segmentation. */
-  ForegroundBackgroundSegmentMask* GetSegmentMask();
+  //ForegroundBackgroundSegmentMask* GetSegmentMask();
 
   /** Set the weight between the regional and boundary terms. */
   void SetLambda(const float);
@@ -161,13 +158,13 @@ protected:
   std::vector<float> EdgeWeights;
 
   /** The output segmentation */
-  ForegroundBackgroundSegmentMask::Pointer ResultingSegments;
+  //ForegroundBackgroundSegmentMask::Pointer ResultingSegments;
 
   /** User specified foreground points */
-  IndexContainer Sources;
+  //IndexContainer Sources;
 
   /** User specified background points */
-  IndexContainer Sinks;
+ // IndexContainer Sinks;
 
   /** The weighting between unary and binary terms */
   float Lambda = 0.01f;
@@ -176,12 +173,12 @@ protected:
   int NumberOfHistogramBins = 10;
 
   /** An image which keeps tracks of the mapping between pixel index and graph node id */
-  NodeImageType::Pointer NodeImage;
+  //NodeImageType::Pointer NodeImage;
 
   // Typedefs
-  typedef typename TImage::PixelType PixelType;
-  typedef itk::Statistics::ListSample<PixelType> SampleType;
-  typedef itk::Statistics::SampleToHistogramFilter<SampleType, HistogramType> SampleToHistogramFilterType;
+  //typedef typename TImage::PixelType PixelType;
+  //typedef itk::Statistics::ListSample<PixelType> SampleType;
+  //typedef itk::Statistics::SampleToHistogramFilter<SampleType, HistogramType> SampleToHistogramFilterType;
 
   /** Create the histograms from the users selections */
   void CreateSamples();
@@ -202,16 +199,16 @@ protected:
   void CutGraph();
 
   /** The ITK data structure for storing the values that we will compute the histogram of. */
-  typename SampleType::Pointer ForegroundSample;
-  typename SampleType::Pointer BackgroundSample;
+  //typename SampleType::Pointer ForegroundSample;
+  //typename SampleType::Pointer BackgroundSample;
 
   /** The histograms. */
-  const HistogramType* ForegroundHistogram = nullptr;
-  const HistogramType* BackgroundHistogram = nullptr;
+  //const HistogramType* ForegroundHistogram = nullptr;
+  //const HistogramType* BackgroundHistogram = nullptr;
 
   /** ITK filters to create histograms. */
-  typename SampleToHistogramFilterType::Pointer ForegroundHistogramFilter;
-  typename SampleToHistogramFilterType::Pointer BackgroundHistogramFilter;
+  //typename SampleToHistogramFilterType::Pointer ForegroundHistogramFilter;
+  //typename SampleToHistogramFilterType::Pointer BackgroundHistogramFilter;
 
   /** The selection information of the image */
   vtkStructuredPoints* _selection;
@@ -225,6 +222,5 @@ protected:
   unsigned int SinkNodeId;
 };
 
-#include "ImageGraphCut.hpp"
-
 #endif
+

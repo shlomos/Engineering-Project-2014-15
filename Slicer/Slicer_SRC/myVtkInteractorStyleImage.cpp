@@ -28,12 +28,11 @@
 #include <sstream>
 
 
-
-
 myVtkInteractorStyleImage::myVtkInteractorStyleImage()
 {
 	leapCallback = vtkSmartPointer<vtkCallbackCommand>::New();
 	leapCallback->SetCallback(myVtkInteractorStyleImage::ProcessLeapEvents);
+	_graph_cut = new ImageGraphCut();
 }
 void myVtkInteractorStyleImage::SetImageViewer(vtkImageViewer2* imageViewer, std::string outputName, vtkSmartPointer<vtkImageActor> selection_actor) {
 	_ImageViewer = imageViewer;
@@ -176,6 +175,15 @@ void myVtkInteractorStyleImage::WriteToFile() {
 	writer->Write();
 	cout << "Done." << endl;
 }
+
+typedef void(myVtkInteractorStyleImage::*workerFunction)();
+
+void myVtkInteractorStyleImage::doSegment() {
+	_graph_cut->SetImage( (vtkStructuredPoints*)((vtkImageMapToColors*)_selection_actor->GetMapper()->GetInputAlgorithm())->GetInput() );
+	_graph_cut->PerformSegmentation();
+	
+}
+
 void myVtkInteractorStyleImage::OnKeyUp() {}
 void myVtkInteractorStyleImage::OnKeyDown() {
 	std::string key = this->GetInteractor()->GetKeySym();
@@ -200,8 +208,8 @@ void myVtkInteractorStyleImage::OnKeyDown() {
 		ToggleOrientation();
 	}
 	else if (key.compare("f") == 0) {
-		cout << "Hands free mode: " << (_hfMode ? "ON" : "OFF") << endl;
 		_hfMode = !_hfMode;
+		cout << "Hands free mode: " << (_hfMode ? "ON" : "OFF") << endl;
 	}
 	else if (key.compare("s") == 0) {
 		WriteToFile();
@@ -209,8 +217,18 @@ void myVtkInteractorStyleImage::OnKeyDown() {
 	else if (key.compare("p") == 0) {
 		return;
 	}
+	else if (key.compare("space") == 0) {
+
+		workerFunction f = &myVtkInteractorStyleImage::doSegment;
+		boost::thread workerThread(f, this);
+
+		// update mapper to show segmentation
+		this->_selection_actor->GetMapper()->Update();
+		this->_ImageViewer->Render();
+	}
 	// forward event
 }
+
 void myVtkInteractorStyleImage::OnMouseWheelForward() {
 	//std::cout << "Scrolled mouse wheel forward." << std::endl;
 	MoveSliceForward();
@@ -490,4 +508,9 @@ void myVtkInteractorStyleImage::ProcessLeapEvents(vtkObject* object, unsigned lo
 	//intStyle->_ImageViewer->SetSlice(intStyle->_Slice);
 	intStyle->_ImageViewer->Render();
 }
+
+myVtkInteractorStyleImage::~myVtkInteractorStyleImage(){
+	delete _graph_cut;
+}
+
 vtkStandardNewMacro(myVtkInteractorStyleImage);
