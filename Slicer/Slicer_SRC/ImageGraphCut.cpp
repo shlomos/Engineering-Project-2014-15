@@ -56,10 +56,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //	this->BackgroundHistogramFilter = SampleToHistogramFilterType::New();
 //}
 
-void ImageGraphCut::SetImage(vtkStructuredPoints* const selection) 
+void ImageGraphCut::SetImage(vtkStructuredPoints* const selection, vtkStructuredPoints* CT_image) 
 {
 	this->_selection = selection;
-	// deep copy?
+	this->_CT_image = CT_image;
 
 }
 
@@ -89,15 +89,15 @@ void ImageGraphCut::CutGraph()
 
 	for (int i = 0; i < this->_selection->GetNumberOfPoints(); i++)
 	{
-		if (!(i % 5000)) {
-			cout << "updating mapper... inside for. i is: " << i << endl;
-		}
+		//if (!(i % 5000)) {
+			//cout << "updating mapper... inside for. i is: " << i << endl;
+		//}
 		
 		if (groups[i] == groups[this->SourceNodeId]) {
 			scalars->SetValue(i, FOREGROUND);
 		}
 		else if (groups[i] == groups[this->SinkNodeId])  {
-			scalars->SetValue(i, BACKGROUND);
+			scalars->SetValue(i, NOT_ACTIVE);
 		}
 	}
 
@@ -393,6 +393,11 @@ void ImageGraphCut::PerformSegmentation()
 //	std::cout << "Finished CreateNEdges()" << std::endl;
 //}
 
+double ImageGraphCut::computeTumorProbability(double point_value)
+{
+	return std::exp(-((pow(point_value-MU,2))/(2*pow(SIGMA,2))))/(SIGMA*sqrt(2.0*CHICKEN_PI))/(0.01638972434);
+}
+
 // Add t-edges and set t-edge weights (links from image nodes to virtual background and virtual foreground node)
 //template <typename TImage, typename TPixelDifferenceFunctor>
 void ImageGraphCut::CreateTEdges()
@@ -417,21 +422,30 @@ void ImageGraphCut::CreateTEdges()
 	vtkPointData* pointsData = _selection->GetPointData();
 	vtkIntArray* selection_scalars = (vtkIntArray*)pointsData->GetScalars();
 
+	vtkPointData* pointsDataCT = _CT_image->GetPointData();
+	vtkIntArray* scalars_CT = (vtkIntArray*)pointsDataCT->GetScalars();
+
 	cout << "number of vertices is: " << this->_selection->GetNumberOfPoints() << endl;
 	for (int i = 0; i < this->_selection->GetNumberOfPoints(); i++){
 		if (selection_scalars->GetValue(i) == FOREGROUND)
 		{
-			currentNumberOfEdges = AddBidirectionalEdge(currentNumberOfEdges, i, this->SinkNodeId, 1); // because shlomo dont like 0
+			cout << "point_value front is: " << scalars_CT->GetValue(i) << endl;
+			cout << "weight computed is: " << computeTumorProbability(scalars_CT->GetValue(i)) << endl;
+			currentNumberOfEdges = AddBidirectionalEdge(currentNumberOfEdges, i, this->SinkNodeId, computeTumorProbability(scalars_CT->GetValue(i))); // because shlomo dont like 0
+			//currentNumberOfEdges = AddBidirectionalEdge(currentNumberOfEdges, i, this->SinkNodeId, 0); // because shlomo dont like 0
 			currentNumberOfEdges = AddBidirectionalEdge(currentNumberOfEdges, i, this->SourceNodeId, std::numeric_limits<float>::max());
 		}
 		else if (selection_scalars->GetValue(i) == BACKGROUND)
 		{
+			cout << "point_value back is: " << scalars_CT->GetValue(i) << endl;
+			cout << "weight computed is: " << computeTumorProbability(scalars_CT->GetValue(i)) << endl;
 			currentNumberOfEdges = AddBidirectionalEdge(currentNumberOfEdges, i, this->SinkNodeId, std::numeric_limits<float>::max());
-			currentNumberOfEdges = AddBidirectionalEdge(currentNumberOfEdges, i, this->SourceNodeId, 1); // because shlomo dont like 0
+			currentNumberOfEdges = AddBidirectionalEdge(currentNumberOfEdges, i, this->SourceNodeId, computeTumorProbability(scalars_CT->GetValue(i))); // because shlomo dont like 0
+			//currentNumberOfEdges = AddBidirectionalEdge(currentNumberOfEdges, i, this->SourceNodeId, 0); // because shlomo dont like 0
 		}
 		else {
-			currentNumberOfEdges = AddBidirectionalEdge(currentNumberOfEdges, i, this->SinkNodeId,   0.5);
-			currentNumberOfEdges = AddBidirectionalEdge(currentNumberOfEdges, i, this->SourceNodeId, 0.5);
+			currentNumberOfEdges = AddBidirectionalEdge(currentNumberOfEdges, i, this->SinkNodeId, 1.0 - computeTumorProbability(scalars_CT->GetValue(i)));
+			currentNumberOfEdges = AddBidirectionalEdge(currentNumberOfEdges, i, this->SourceNodeId, computeTumorProbability(scalars_CT->GetValue(i)));
 		}
 	}
 	cout << "at the end of createTedges" << endl;

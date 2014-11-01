@@ -91,6 +91,7 @@ protected:
 	std::string _outputName;
 	int _drawSize;
 	vtkSmartPointer<vtkImageActor> _selection_actor;
+	vtkStructuredPoints* _CT_image;
 	bool _hfMode;
 	bool _isSliceLocked;
 	bool _isPainting;
@@ -102,7 +103,7 @@ protected:
 
 public:
 	myVtkInteractorStyleImage();
-	void SetImageViewer(vtkImageViewer2* imageViewer, std::string outputName, vtkSmartPointer<vtkImageActor> selection_actor);
+	void SetImageViewer(vtkImageViewer2* imageViewer, std::string outputName, vtkSmartPointer<vtkImageActor> selection_actor, vtkStructuredPoints* CT_image);
 	void SetStatusMapper(vtkTextMapper* statusMapper);
 	void doSegment();
 	void setSlice(int slice);

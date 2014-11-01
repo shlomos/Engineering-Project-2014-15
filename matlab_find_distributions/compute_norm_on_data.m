@@ -1,23 +1,34 @@
-function [  ] = compute_norm_on_data( filename )
+function [  ] = compute_norm_on_data( filename, GT_filename )
 % This function estimates the given CT and GT and normal dist. and computes
 % its expectation and std
 
-CT = load_untouch_nii('C:\Users\moshesamson\Desktop\cropped_liver\case9\case9-15-07-2007.nii');
+global info;
+
+CT = load_untouch_nii(filename);
 CT_img = double(CT.img); %rows X cols X slices
-GT = load_untouch_nii('C:\Users\moshesamson\Desktop\cropped_liver\case9\case9-15-07-2007_GT.nii');
+GT = load_untouch_nii(GT_filename);
 GT_img = double(GT.img); %rows X cols X slices
 
 CT_img_row = CT_img(:);
 GT_img_row = GT_img(:);
 
+if (length(CT_img_row) ~= length(GT_img_row))
+    fprintf('ERROR! the lengths of the CT and GT are not the same in case: %s\n', filename);
+    size(CT_img)
+    size(GT_img)
+    return;
+end
+
 only_GT_on_CT_row = CT_img_row(logical(GT_img_row));
 
 [mu,sigma,muci,sigmaci] = normfit(only_GT_on_CT_row);
 
-disp('file: ') , filename
-disp('mu is: '), mu
-disp('sigms is: '), sigma
+fprintf('file: %s.\n', filename); 
+fprintf('mu is: %f.\n', mu);
+fprintf('sigms is: %f.\n\n', sigma);
 
+
+info = [info; {filename, mu, sigma}];
 
 end
 

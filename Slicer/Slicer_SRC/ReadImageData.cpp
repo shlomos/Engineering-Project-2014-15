@@ -239,7 +239,7 @@ int main(int argc, char* argv[])
 	//Segmenter
 	//Segmenter* _segmenter = new Segmenter((vtkStructuredPoints*)(((vtkImageMapToColors*)selectionA->GetMapper()->GetInputAlgorithm()))->GetInput(), reader->GetOutput());
 
-	myInteractorStyle->SetImageViewer(viewer, outputName, selectionA);
+	myInteractorStyle->SetImageViewer(viewer, outputName, selectionA, reader->GetOutput());
 	myInteractorStyle->SetStatusMapper(sliceTextMapper);
 	viewer->SetupInteractor(renderWindowInteractor);
 	//mapperSel->SetScalarModeToUseCellData();

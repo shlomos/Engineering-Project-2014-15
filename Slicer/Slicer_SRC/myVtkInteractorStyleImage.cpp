@@ -34,7 +34,7 @@ myVtkInteractorStyleImage::myVtkInteractorStyleImage()
 	leapCallback->SetCallback(myVtkInteractorStyleImage::ProcessLeapEvents);
 	_graph_cut = new ImageGraphCut();
 }
-void myVtkInteractorStyleImage::SetImageViewer(vtkImageViewer2* imageViewer, std::string outputName, vtkSmartPointer<vtkImageActor> selection_actor) {
+void myVtkInteractorStyleImage::SetImageViewer(vtkImageViewer2* imageViewer, std::string outputName, vtkSmartPointer<vtkImageActor> selection_actor, vtkStructuredPoints* CT_image) {
 	_ImageViewer = imageViewer;
 	_ImageViewer->SetSliceOrientation(SLICE_ORIENTATION_XY);
 	_orientation = -SLICE_ORIENTATION_XY;
@@ -48,6 +48,7 @@ void myVtkInteractorStyleImage::SetImageViewer(vtkImageViewer2* imageViewer, std
 	_isSliceLocked = false;
 	_isPainting = false;
 	_selection_actor = selection_actor;
+	_CT_image = CT_image;
 	cout << "Slicer: Min = " << _MinSlice << ", Max = " << _MaxSlice << ", Orientation: " << _orientation << std::endl;
 }
 void myVtkInteractorStyleImage::SetStatusMapper(vtkTextMapper* statusMapper) {
@@ -179,7 +180,7 @@ void myVtkInteractorStyleImage::WriteToFile() {
 typedef void(myVtkInteractorStyleImage::*workerFunction)();
 
 void myVtkInteractorStyleImage::doSegment() {
-	_graph_cut->SetImage( (vtkStructuredPoints*)((vtkImageMapToColors*)_selection_actor->GetMapper()->GetInputAlgorithm())->GetInput() );
+	_graph_cut->SetImage( (vtkStructuredPoints*)((vtkImageMapToColors*)_selection_actor->GetMapper()->GetInputAlgorithm())->GetInput(), _CT_image );
 	_graph_cut->PerformSegmentation();
 	
 }

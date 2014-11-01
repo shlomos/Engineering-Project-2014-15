@@ -15,6 +15,10 @@
 #define MIN_DRAW_SIZE 1
 #define MAX_DRAW_SIZE 50
 
+// Mu and Sigma on GT. right now is mean of all cases
+#define MU         58.404
+#define SIGMA      14.341
+#define CHICKEN_PI 3.141592
 
 enum
 {
@@ -22,6 +26,7 @@ enum
 	SLICE_ORIENTATION_XZ = 1,
 	SLICE_ORIENTATION_XY = 2
 };
+
 
 
 

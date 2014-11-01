@@ -106,7 +106,7 @@ public:
   //typedef std::vector<itk::Index<2> > IndexContainer;
 
   /** Several initializations are done here. */
-  void SetImage(vtkStructuredPoints* const image);
+  void SetImage(vtkStructuredPoints* const image, vtkStructuredPoints* CT_image);
 
   /** Get the image that we are segmenting. */
   //TImage* GetImage();
@@ -198,6 +198,8 @@ protected:
   /** Perform the s-t min cut */
   void CutGraph();
 
+  double computeTumorProbability(double point_value);
+
   /** The ITK data structure for storing the values that we will compute the histogram of. */
   //typename SampleType::Pointer ForegroundSample;
   //typename SampleType::Pointer BackgroundSample;
@@ -212,6 +214,7 @@ protected:
 
   /** The selection information of the image */
   vtkStructuredPoints* _selection;
+  vtkStructuredPoints* _CT_image;
 
   /** The gray values of the image */
   vtkStructuredPoints* _image;
