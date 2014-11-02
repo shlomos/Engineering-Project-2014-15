@@ -32,12 +32,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 // STL
 #include <vector>
 
-// Boost
-#include <boost/graph/adjacency_list.hpp>
-#include <boost/graph/one_bit_color_map.hpp>
-#include <boost/graph/stoer_wagner_min_cut.hpp>
-#include <boost/property_map/property_map.hpp>
-#include <boost/graph/grid_graph.hpp>
+//// Boost
+//#include <boost/graph/adjacency_list.hpp>
+//#include <boost/graph/one_bit_color_map.hpp>
+//#include <boost/graph/stoer_wagner_min_cut.hpp>
+//#include <boost/property_map/property_map.hpp>
+//#include <boost/graph/grid_graph.hpp>
 
 // vtk and stuff
 #include <vtkSmartPointer.h>
@@ -83,6 +83,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <vtkCamera.h>
 #include <sstream>
 #include <limits>
+#include "graph.h"
 
 
 /** Perform graph cut based segmentation on an image. Image pixels can be only grayscale.
@@ -91,6 +92,10 @@ class ImageGraphCut
 {
 public:
 
+	~ImageGraphCut()
+	{
+		delete Graph;
+	}
   //ImageGraphCut(TPixelDifferenceFunctor pixelDifferenceFunctor) :
     //PixelDifferenceFunctor(pixelDifferenceFunctor){}
 
@@ -134,37 +139,36 @@ public:
 protected:
 
   /** A graph object for Kolmogorov*/
-  typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::directedS,
-      boost::no_property,
-      boost::property<boost::edge_index_t, std::size_t> > GraphType;
+	typedef Graph<int, int, int> GraphType;
 
-  typedef boost::graph_traits<GraphType>::vertex_descriptor VertexDescriptor;
-  typedef boost::graph_traits<GraphType>::edge_descriptor EdgeDescriptor;
-  typedef boost::graph_traits<GraphType>::vertices_size_type VertexIndex;
-  typedef boost::graph_traits<GraphType>::edges_size_type EdgeIndex;
+  //typedef boost::graph_traits<GraphType>::vertex_descriptor VertexDescriptor;
+  //typedef boost::graph_traits<GraphType>::edge_descriptor EdgeDescriptor;
+  //typedef boost::graph_traits<GraphType>::vertices_size_type VertexIndex;
+  //typedef boost::graph_traits<GraphType>::edges_size_type EdgeIndex;
 
-  /** Store the list of edges and their corresponding reverse edges. */
-  std::vector<EdgeDescriptor> ReverseEdges;
+  ///** Store the list of edges and their corresponding reverse edges. */
+  //std::vector<EdgeDescriptor> ReverseEdges;
 
-  /** Create an edge on the graph. */
-  unsigned int AddBidirectionalEdge(unsigned int numberOfEdges, const unsigned int source,
-                            const unsigned int target,
-                            const float weight);
+  ///** Create an edge on the graph. */
+  //unsigned int AddBidirectionalEdge(unsigned int numberOfEdges, const unsigned int source,
+  //                          const unsigned int target,
+  //                          const float weight);
 
   /** The main graph object. */
-  GraphType Graph;
+  GraphType* Graph;
 
-  /** Maintain a list of all of the edge weights. */
-  std::vector<float> EdgeWeights;
 
-  /** The output segmentation */
-  //ForegroundBackgroundSegmentMask::Pointer ResultingSegments;
+ // /** Maintain a list of all of the edge weights. */
+ // std::vector<float> EdgeWeights;
 
-  /** User specified foreground points */
-  //IndexContainer Sources;
+ // /** The output segmentation */
+ // //ForegroundBackgroundSegmentMask::Pointer ResultingSegments;
 
-  /** User specified background points */
- // IndexContainer Sinks;
+ // /** User specified foreground points */
+ // //IndexContainer Sources;
+
+ // /** User specified background points */
+ //// IndexContainer Sinks;
 
   /** The weighting between unary and binary terms */
   float Lambda = 0.01f;
@@ -220,9 +224,9 @@ protected:
   vtkStructuredPoints* _image;
 
 
-  /** Store the node ids of the terminals */
-  unsigned int SourceNodeId;
-  unsigned int SinkNodeId;
+  ///** Store the node ids of the terminals */
+  //unsigned int SourceNodeId;
+  //unsigned int SinkNodeId;
 };
 
 #endif
