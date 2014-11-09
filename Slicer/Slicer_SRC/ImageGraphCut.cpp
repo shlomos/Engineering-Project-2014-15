@@ -29,6 +29,7 @@ void ImageGraphCut::CutGraph()
 	//	t);
 
 	int flow = Graph->maxflow();
+	cout << "++++ FLOW IS: " << flow << endl;
 
 	cout << "finished cutting the graph! :)" << endl;
 
@@ -61,6 +62,12 @@ void ImageGraphCut::PerformSegmentation()
 	cout << "Finished Segmentation!" << endl;
 }
 
+double ImageGraphCut::ComputeDifference(vtkIdType current_point, vtkIdType neighbor_point)
+{
+	vtkPointData* pointsDataCT = _CT_image->GetPointData();
+	vtkIntArray* scalars_CT = (vtkIntArray*)pointsDataCT->GetScalars();
+	return ((double)std::abs(scalars_CT->GetValue(neighbor_point) - scalars_CT->GetValue(current_point)));
+}
 // 
 void ImageGraphCut::CreateNEdges()
 {
@@ -69,28 +76,66 @@ void ImageGraphCut::CreateNEdges()
 
 	cout << "DEBUG!1" << endl;
 
-	int* extent = this->_selection->GetExtent();
 	int ijk[3];
+	int weight;
+	float pixelDifference;
+	vtkIdType current_point, neighbor_point;
 
-	cout << this->_selection->GetNumberOfPoints() << endl;
-	cout << extent[0] << " " << extent[1] << " " << extent[2] << " " << extent[3] << " " << extent[4] << " " << extent[5] << endl;
+	// Estimate the "camera noise"
+	double sigma = this->ComputeNoise();
+
+	int* extent = this->_selection->GetExtent();
+
+	//cout << this->_selection->GetNumberOfPoints() << endl;
+	//cout << extent[0] << " " << extent[1] << " " << extent[2] << " " << extent[3] << " " << extent[4] << " " << extent[5] << endl;
+
 
 	for (int i = 0; i < extent[1]; i++)
 	{
 		for (int j = 0; j < extent[3]; j++)
 		{
-			for (int k = extent[5]; k > 0; k--)
+			for (int k = 0; k < extent[5]; k++)
 			{
+
 				ijk[0] = i;
 				ijk[1] = j;
 				ijk[2] = k;
-				vtkIdType current_point = this->_selection->ComputePointId(ijk);
+				current_point = this->_selection->ComputePointId(ijk);
+				//cout << "(i, j, k): (" << i << ", " << j << ", " << k << "). -->> id: " << current_point << endl;
+				break;
 
 				// r
 				ijk[0] = i+1;
 				ijk[1] = j;
 				ijk[2] = k;
-				Graph->add_edge(current_point, this->_selection->ComputePointId(ijk), std::numeric_limits<int>::max(), std::numeric_limits<int>::max());
+				neighbor_point = this->_selection->ComputePointId(ijk);
+				//cout << "r: neighbor_point: " << neighbor_point << endl;
+				pixelDifference = ComputeDifference(current_point, neighbor_point);
+				//weight = exp(-pow(pixelDifference, 2) / (2.0*sigma*sigma));
+				weight = std::floor(10.0*exp(-pow(pixelDifference, 2) / (2.0*sigma*sigma)));
+				Graph->add_edge(current_point, neighbor_point, weight, weight);
+
+				// o
+				ijk[0] = i;
+				ijk[1] = j;
+				ijk[2] = k+1;
+				neighbor_point = this->_selection->ComputePointId(ijk);
+				//cout << "o: neighbor_point: " << neighbor_point << endl;
+				pixelDifference = ComputeDifference(current_point, neighbor_point);
+				//weight = exp(-pow(pixelDifference, 2) / (2.0*sigma*sigma));
+				weight = std::floor(10.0*exp(-pow(pixelDifference, 2) / (2.0*sigma*sigma)));
+				Graph->add_edge(current_point, neighbor_point, weight, weight);
+
+				// u
+				ijk[0] = i;
+				ijk[1] = j+1;
+				ijk[2] = k;
+				neighbor_point = this->_selection->ComputePointId(ijk);
+				//cout << "u: neighbor_point: " << neighbor_point << endl;
+				pixelDifference = ComputeDifference(current_point, neighbor_point);
+				//weight = exp(-pow(pixelDifference, 2) / (2.0*sigma*sigma));
+				weight = std::floor(10.0*exp(-pow(pixelDifference, 2) / (2.0*sigma*sigma)));
+				Graph->add_edge(current_point, neighbor_point, weight, weight);
 
 				//// ru
 				//ijk[0] = i+1;
@@ -110,17 +155,6 @@ void ImageGraphCut::CreateNEdges()
 				//ijk[2] = k-1;
 				//currentNumberOfEdges = AddBidirectionalEdge(currentNumberOfEdges, current_point, this->_selection->ComputePointId(ijk), std::numeric_limits<float>::max());
 
-				// o
-				ijk[0] = i;
-				ijk[1] = j;
-				ijk[2] = k-1;
-				Graph->add_edge(current_point, this->_selection->ComputePointId(ijk), std::numeric_limits<int>::max(), std::numeric_limits<int>::max());
-
-				// u
-				ijk[0] = i;
-				ijk[1] = j+1;
-				ijk[2] = k;
-				Graph->add_edge(current_point, this->_selection->ComputePointId(ijk), std::numeric_limits<int>::max(), std::numeric_limits<int>::max());
 
 				//// uo
 				//ijk[0] = i;
@@ -131,7 +165,6 @@ void ImageGraphCut::CreateNEdges()
 			}
 		}
 		//cout << "DEBUG!2" << endl;
-
 
 	}
 
@@ -208,13 +241,40 @@ void ImageGraphCut::CreateNEdges()
 	std::cout << "Finished CreateNEdges()" << std::endl;
 }
 
-double ImageGraphCut::computeTumorProbability(double point_value)
+int ImageGraphCut::computeTumorProbability(double point_value)
 {
-	return std::exp(-((pow(point_value-MU,2))/(2*pow(SIGMA,2))))/(SIGMA*sqrt(2.0*CHICKEN_PI))/(0.01638972434);
+	return std::floor(100.0*std::exp(-((pow(point_value-MU,2))/(2*pow(SIGMA,2))))/(SIGMA*sqrt(2.0*CHICKEN_PI))/(0.01638972434));
+	//todo: convert to int!
 }
 
+void ImageGraphCut::createEdgesTest()
+{
+	cout << "testing..." << endl;
+	for (int j = 0; j < this->_selection->GetNumberOfPoints(); j++) {
+		this->Graph->add_node();
+	}
+
+	for (int i = 0; i < this->_selection->GetNumberOfPoints()-1; i++){
+		
+		// check if t_edge is to be added
+		if (i == 0) {
+			this->Graph->add_tweights(0, 10, 5);
+		}
+
+		if (i == this->_selection->GetNumberOfPoints() / 2) {
+			this->Graph->add_edge(i, i + 1, 1, 1);
+		}
+		else {
+			//cout << "i is: " << i << endl;
+			this->Graph->add_edge(i, i + 1, 2, 2);
+		}
+	}
+	this->Graph->add_tweights(this->_selection->GetNumberOfPoints()-1, 4, 10);
+}
+
+
+
 // Add t-edges and set t-edge weights (links from image nodes to virtual background and virtual foreground node)
-//template <typename TImage, typename TPixelDifferenceFunctor>
 void ImageGraphCut::CreateTEdges()
 {
 	std::cout << "CreateTEdges()" << std::endl;
@@ -226,23 +286,23 @@ void ImageGraphCut::CreateTEdges()
 	vtkPointData* pointsDataCT = _CT_image->GetPointData();
 	vtkIntArray* scalars_CT = (vtkIntArray*)pointsDataCT->GetScalars();
 
-	cout << "number of vertices is: " << this->_selection->GetNumberOfPoints() << endl;
+	//cout << "number of vertices is: " << this->_selection->GetNumberOfPoints() << endl;
 	for (int i = 0; i < this->_selection->GetNumberOfPoints(); i++){
-			Graph->add_node();
-		if (selection_scalars->GetValue(i) == BACKGROUND) 
+		Graph->add_node();
+		if (selection_scalars->GetValue(i) == BACKGROUND)
 		{
 			Graph->add_tweights(i, std::numeric_limits<int>::min(), std::numeric_limits<int>::max());
-			cout << "BACKGROUND: selection_scalars->GetValue(i) " << selection_scalars->GetValue(i) << endl;
+			//cout << "BACKGROUND: selection_scalars->GetValue(i) " << selection_scalars->GetValue(i) << endl;
 			continue;
 		}
 		if (selection_scalars->GetValue(i) == FOREGROUND)
 		{
 			Graph->add_tweights(i, std::numeric_limits<int>::max(), std::numeric_limits<int>::min());
-			cout << "FOREGROUND: selection_scalars->GetValue(i) " << selection_scalars->GetValue(i) << endl;
+			//cout << "FOREGROUND:: id is" << i << endl;
 			continue;
 		}
 		if (selection_scalars->GetValue(i) == NOT_ACTIVE){
-			Graph->add_tweights(i,  1.0 - computeTumorProbability(scalars_CT->GetValue(i)), computeTumorProbability(scalars_CT->GetValue(i)));
+			Graph->add_tweights(i, 1.0 - computeTumorProbability(scalars_CT->GetValue(i)), computeTumorProbability(scalars_CT->GetValue(i)));
 			//Graph->add_tweights(i, std::numeric_limits<float>::max(), std::numeric_limits<float>::max());
 			continue;
 		}
@@ -341,6 +401,7 @@ void ImageGraphCut::CreateGraph()
 
 	CreateTEdges();
 	CreateNEdges();
+	//createEdgesTest();
 	cout << "done creating the graph " << endl;
 }
 

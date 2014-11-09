@@ -190,6 +190,9 @@ protected:
   /** Estimate the "camera noise" */
   double ComputeNoise();
 
+  /** Compute the distance between two neighbors pixels*/
+  double ComputeDifference(vtkIdType currernt_point, vtkIdType neighbor);
+
   /** Create a Kolmogorov graph structure from the image and selections */
   void CreateGraph();
 
@@ -202,7 +205,9 @@ protected:
   /** Perform the s-t min cut */
   void CutGraph();
 
-  double computeTumorProbability(double point_value);
+  int computeTumorProbability(double point_value);
+
+  void createEdgesTest();
 
   /** The ITK data structure for storing the values that we will compute the histogram of. */
   //typename SampleType::Pointer ForegroundSample;
