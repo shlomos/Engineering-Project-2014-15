@@ -118,8 +118,11 @@ protected:
 	void MoveSliceBackward();
 	void ToggleOrientation();
 	void WriteToFile();
+	void LoadFromFile();
+	void ResetAll();
 	virtual void OnKeyDown();
 	virtual void OnKeyUp();
+	virtual void OnMouseMove();
 	virtual void OnMouseWheelForward();
 	virtual void OnMouseWheelBackward();
 };

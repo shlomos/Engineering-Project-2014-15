@@ -66,6 +66,11 @@ void ImageGraphCut::SetImage(vtkStructuredPoints* const selection)
 
 }
 
+void ImageGraphCut::CutGraph()
+{
+	std::cout << "CutGraph()..." << std::endl;
+
+}
 //template <typename TImage, typename TPixelDifferenceFunctor>
 //void ImageGraphCut<TImage, TPixelDifferenceFunctor>::CutGraph()
 //{

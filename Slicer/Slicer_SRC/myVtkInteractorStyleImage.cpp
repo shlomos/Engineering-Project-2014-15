@@ -108,6 +108,34 @@ void myVtkInteractorStyleImage::ToggleOrientation() {
 	std::string msg = StatusMessage::Format(_ImageViewer->GetSliceMin(), _ImageViewer->GetSliceMax(), _ImageViewer->GetSliceOrientation());
 	_StatusMapper->SetInput(msg.c_str());
 }
+
+void myVtkInteractorStyleImage::LoadFromFile(){
+	string filename; 
+	cout << "Please enter the filename of the segmentation to load:" << endl;
+	cin >> filename;
+	vtkSmartPointer<vtkStructuredPointsReader> sLoader =
+		vtkSmartPointer<vtkStructuredPointsReader>::New();
+	sLoader->SetFileName(filename.c_str());
+	cout << "Reading, please wait..." << endl;
+	sLoader->Update();
+	vtkImageMapToColors* mapper = (vtkImageMapToColors*)_selection_actor->GetMapper()->GetInputAlgorithm();
+	mapper->SetInputData(sLoader->GetOutput());
+	cout << "Updating view, just a little longer..." << endl;
+	mapper->Modified();
+	mapper->Update();
+	cout << "Loaded " << filename << " succesfully!" << endl;
+}
+
+void myVtkInteractorStyleImage::ResetAll(){
+	vtkStructuredPoints* selection = ((vtkStructuredPoints*)(((vtkImageMapToColors*)_selection_actor->GetMapper()->GetInputAlgorithm()))->GetInput());
+	vtkPointData* pointData = selection->GetPointData();
+	vtkIntArray* selection_scalars = (vtkIntArray*)pointData->GetScalars();
+	for (int i = 0; i < selection->GetNumberOfPoints(); i++){
+		selection_scalars->SetValue(i, NOT_ACTIVE);
+	}
+	selection_scalars->Modified();
+}
+
 double* myVtkInteractorStyleImage::redrawCrossHair() {
 	vtkActor* cross_actor = _ImageViewer->GetRenderer()->GetActors()->GetLastActor();
 	vtkSmartPointer<vtkPolyData> pd = (vtkPolyData *)((vtkPolyDataMapper*)(cross_actor->GetMapper())->GetInputAsDataSet());
@@ -186,6 +214,10 @@ void myVtkInteractorStyleImage::doSegment() {
 }
 
 void myVtkInteractorStyleImage::OnKeyUp() {}
+void myVtkInteractorStyleImage::OnMouseMove(){
+	this->_x_position = this->Interactor->GetEventPosition()[0]-700;
+	this->_y_position = this->Interactor->GetEventPosition()[1];
+}
 void myVtkInteractorStyleImage::OnKeyDown() {
 	std::string key = this->GetInteractor()->GetKeySym();
 	if (key.compare("Up") == 0) {
@@ -217,6 +249,12 @@ void myVtkInteractorStyleImage::OnKeyDown() {
 	}
 	else if (key.compare("p") == 0) {
 		return;
+	}
+	else if (key.compare("r") == 0) {
+		this->ResetAll();
+	}
+	else if (key.compare("l") == 0) {
+		this->LoadFromFile();
 	}
 	else if (key.compare("space") == 0) {
 

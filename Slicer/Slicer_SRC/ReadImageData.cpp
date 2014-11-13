@@ -228,7 +228,10 @@ int main(int argc, char* argv[])
    usageTextProp->SetJustificationToLeft();
  
    vtkSmartPointer<vtkTextMapper> usageTextMapper = vtkSmartPointer<vtkTextMapper>::New();
-   usageTextMapper->SetInput("Options:\n - Hold Shift to scroll between slices.\n - Hold Ctrl to draw segmentation.\n - Hold Alt to mark background.\n\n -- Press '1' and '2' to change brush's size\n -- Press 'o' to toggle orientation\n -- Press 's' to save segmentation\n -- Press 'f' for hands-free mode.");
+   usageTextMapper->SetInput("Options:\n - Hold Shift to scroll between slices.\n - Hold Ctrl"
+	   " to draw segmentation.\n - Hold Alt to mark background.\n\n -- Press '1' and '2' to change"
+	   " brush's size\n -- Press 'o' to toggle orientation\n -- Press 's' to save segmentation\n --"
+	   "  Press 'l' to load segmentation\n --  Press 'r' to reset selection\n -- Press 'f' for hands-free mode.");
    usageTextMapper->SetTextProperty(usageTextProp);
  
    vtkSmartPointer<vtkActor2D> usageTextActor = vtkSmartPointer<vtkActor2D>::New();

@@ -61,7 +61,8 @@ class Tumor
 public:
 	typedef struct {
 		int x, y, z;
-		int* operator[](int q) { switch (q){ case 0: return &x; case 1: return &y; case 2: return &z; } }
+		int nil = NULL;
+		int& operator[](int q) { switch (q){ case 0: return x; case 1: return y; case 2: return z; default: return nil; } }
 	}Point3D;
 	vector<Tumor::Point3D> points;
 
