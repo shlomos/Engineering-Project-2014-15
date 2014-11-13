@@ -83,7 +83,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <vtkCamera.h>
 #include <sstream>
 #include <limits>
+#include <vector>
+#include <map>
 #include "graph.h"
+#include "Tumor.h"
 
 
 /** Perform graph cut based segmentation on an image. Image pixels can be only grayscale.
@@ -95,6 +98,9 @@ public:
 	~ImageGraphCut()
 	{
 		delete Graph;
+		for (int i = 0; i < this->_map.size(); i++) {
+			delete this->_map[i];
+		}
 	}
   //ImageGraphCut(TPixelDifferenceFunctor pixelDifferenceFunctor) :
     //PixelDifferenceFunctor(pixelDifferenceFunctor){}
@@ -119,6 +125,9 @@ public:
   /** Create and cut the graph (The main driver function). */
   void PerformSegmentation();
 
+  /** Add point to the closest tumor, if there is one close enough, and create new Tumor if not*/
+  bool AddPointToTumor(Tumor::Point3D point);
+
   /** Return a list of the selected (via scribbling) pixels. */
   //IndexContainer GetSources();
  // IndexContainer GetSinks();
@@ -140,11 +149,16 @@ protected:
 
   /** A graph object for Kolmogorov*/
 	typedef Graph<int, int, int> GraphType;
+	
+	typedef vector<Tumor> Tumors;
+	typedef vector<GraphType*> Graphs;
 
-  //typedef boost::graph_traits<GraphType>::vertex_descriptor VertexDescriptor;
-  //typedef boost::graph_traits<GraphType>::edge_descriptor EdgeDescriptor;
-  //typedef boost::graph_traits<GraphType>::vertices_size_type VertexIndex;
-  //typedef boost::graph_traits<GraphType>::edges_size_type EdgeIndex;
+	// map between tumors and their graphs.
+	typedef map<int, GraphType*> Tumors_to_graphs_map;
+
+	/** Save the tumors and their graphs*/
+	Tumors _tumors;
+	Tumors_to_graphs_map _map;
 
   ///** Store the list of edges and their corresponding reverse edges. */
   //std::vector<EdgeDescriptor> ReverseEdges;
@@ -202,24 +216,28 @@ protected:
   /** Create the edges between pixels and the terminals (source and sink). */
   void CreateTEdges();
 
+  //------------------------------
+  /** Create the edges between pixels and the terminals (source and sink) for the tumors*/
+  void CreateTEdges_tumor(Tumor tumor);
+
+  /** Create the edges between pixels and the terminals (source and sink) for the tumors*/
+  void CreateNEdges_tumor(Tumor tumor);
+
+  /** Create a Kolmogorov graph structure from the image and selections for every tumor */
+  void CreateGraphs();
+
+  /** Perform the s-t min cut for every tumor, and udpate the mapper accordingly*/
+  void CutGraphs();
+
+  /** Attach all the graphs into*/
+  //------------------------------
+
+
   /** Perform the s-t min cut */
   void CutGraph();
 
+  /** Compute the probability that a point is part of a tumor using only its gray value, using prior knowledge of MU adn SIGMA*/
   int computeTumorProbability(double point_value);
-
-  void createEdgesTest();
-
-  /** The ITK data structure for storing the values that we will compute the histogram of. */
-  //typename SampleType::Pointer ForegroundSample;
-  //typename SampleType::Pointer BackgroundSample;
-
-  /** The histograms. */
-  //const HistogramType* ForegroundHistogram = nullptr;
-  //const HistogramType* BackgroundHistogram = nullptr;
-
-  /** ITK filters to create histograms. */
-  //typename SampleToHistogramFilterType::Pointer ForegroundHistogramFilter;
-  //typename SampleToHistogramFilterType::Pointer BackgroundHistogramFilter;
 
   /** The selection information of the image */
   vtkStructuredPoints* _selection;

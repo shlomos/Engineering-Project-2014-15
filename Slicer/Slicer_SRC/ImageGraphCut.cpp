@@ -13,20 +13,6 @@ void ImageGraphCut::SetImage(vtkStructuredPoints* const selection, vtkStructured
 void ImageGraphCut::CutGraph()
 {
 	cout << "CutGraph()..." << endl;
-	// Compute mininum cut
-
-	//boost::graph_traits<GraphType>::vertex_descriptor s = vertex(this->SourceNodeId, this->Graph);
-	//boost::graph_traits<GraphType>::vertex_descriptor t = vertex(this->SinkNodeId, this->Graph);
-	//std::vector<int> groups(num_vertices(this->Graph));
-	//std::vector<float> residual_capacity(num_edges(this->Graph)); //this needs to be initialized to 0
-	//boykov_kolmogorov_max_flow(this->Graph,
-	//	boost::make_iterator_property_map(&EdgeWeights[0], get(boost::edge_index, this->Graph)),
-	//	boost::make_iterator_property_map(&residual_capacity[0], get(boost::edge_index, this->Graph)),
-	//	boost::make_iterator_property_map(&ReverseEdges[0], get(boost::edge_index, this->Graph)),
-	//	boost::make_iterator_property_map(&groups[0], get(boost::vertex_index, this->Graph)),
-	//	get(boost::vertex_index, this->Graph),
-	//	s,
-	//	t);
 
 	int flow = Graph->maxflow();
 	cout << "++++ FLOW IS: " << flow << endl;
@@ -50,15 +36,92 @@ void ImageGraphCut::CutGraph()
 	cout << "finished update the mapper. Modifying..." << endl;
 	scalars->Modified();
 	cout << "done." << endl;
+}
 
+void ImageGraphCut::CutGraphs() {
+	cout << "CutGraph()..." << endl;
+	int flow;
+
+	vtkIntArray* scalars = (vtkIntArray*)this->_selection->GetPointData()->GetScalars();
+
+	for (vector<Tumor>::iterator it = this->_tumors.begin(); it != this->_tumors.end(); ++it) {
+		
+		//perform max flow for each graph
+		flow = this->_map[(*it).getTId()]->maxflow();
+
+		cout << "start update of mapper..." << endl;
+		TumorBoundingBox bb = (*it).getBoundingBox();
+		
+		vtkIdType id_selection;
+		int counterID = 0;
+		for (int i = bb.min_x; i < bb.max_x; i++){
+			for (int j = bb.min_y; j < bb.max_y; j++) {
+				for (int k = bb.min_z; k < bb.max_z; k++){
+					/**point[0] = i;
+					*point[1] = j;
+					*point[2] = k;*/
+					int point[3] = { i, j, k };
+					id_selection = this->_selection->ComputePointId(point);
+
+					if (this->_map[(*it).getTId()]->what_segment(counterID++) == GraphType::SOURCE) {
+						scalars->SetValue(id_selection, NOT_ACTIVE);
+					}
+					else {
+						scalars->SetValue(id_selection, FOREGROUND);
+					}
+
+				}
+			}
+		}
+	}
+
+	cout << "finished update the mapper. Modifying..." << endl;
+	scalars->Modified();
+	cout << "done." << endl;
 }
 
 //
 void ImageGraphCut::PerformSegmentation()
 {
 	cout << "perform segmentation()" << endl;
-	this->CreateGraph();
-	this->CutGraph();
+	int ijk[3];
+	vtkIdType current_point;
+	bool createdNewTumor = true;
+	int* extent = this->_selection->GetExtent();
+
+	vtkPointData* pointsData = _selection->GetPointData();
+	vtkIntArray* scalars = (vtkIntArray*)pointsData->GetScalars();
+	for (int i = 0; i < extent[1]; i++)
+	{
+		for (int j = 0; j < extent[3]; j++)
+		{
+			for (int k = 0; k < extent[5]; k++)
+			{
+				ijk[0] = i;
+				ijk[1] = j;
+				ijk[2] = k;
+				current_point = this->_selection->ComputePointId(ijk);
+
+				if (scalars->GetValue(current_point) == FOREGROUND){
+					//cout << "added point num. " << current_point << endl;
+					Tumor::Point3D point = { i, j, k };
+					createdNewTumor = AddPointToTumor(point);
+				}
+			}
+		}
+	}
+	
+	//for (int i = 0; i < this->_tumors.size(); i++){
+		//cout << "Tumor "<<i<<"is of size: "<<_tumors.at(i).getPoints().size() << endl;
+		//cout << "Tumor " << i << "is of size: " << _tumors.at(i).getPoints().size() << endl;
+	//}
+	//this->CreateGraph();
+	//this->CutGraph();
+
+	this->CreateGraphs();
+	this->CutGraphs();
+
+
 	cout << "Finished Segmentation!" << endl;
 }
 
@@ -74,7 +137,7 @@ void ImageGraphCut::CreateNEdges()
 	std::cout << "CreateNEdges()" << std::endl;
 	// Create n-edges and set n-edge weights (links between image nodes)
 
-	cout << "DEBUG!1" << endl;
+	//cout << "DEBUG!1" << endl;
 
 	int ijk[3];
 	int weight;
@@ -85,10 +148,6 @@ void ImageGraphCut::CreateNEdges()
 	double sigma = this->ComputeNoise();
 
 	int* extent = this->_selection->GetExtent();
-
-	//cout << this->_selection->GetNumberOfPoints() << endl;
-	//cout << extent[0] << " " << extent[1] << " " << extent[2] << " " << extent[3] << " " << extent[4] << " " << extent[5] << endl;
-
 
 	for (int i = 0; i < extent[1]; i++)
 	{
@@ -168,108 +227,87 @@ void ImageGraphCut::CreateNEdges()
 
 	}
 
-//	unsigned int expectedNumberOfNEdges = 2 * (
-//		imageSize[0] * (imageSize[1] - 1) + // vertical edges
-//		(imageSize[0] - 1) * imageSize[1]  // horizontal edges
-//		);
-//	std::cout << "Resizing for " << expectedNumberOfNEdges << " N-edges." << std::endl;
-//	this->EdgeWeights.resize(num_edges(this->Graph) + expectedNumberOfNEdges);
-//	this->ReverseEdges.resize(num_edges(this->Graph) + expectedNumberOfNEdges);
-//
-//	// We are only using a 4-connected structure,
-//	// so the kernel (iteration neighborhood) must only be
-//	// 3x3 (specified by a radius of 1)
-//	itk::Size<2> radius;
-//	radius.Fill(1);
-//
-//	typedef itk::ShapedNeighborhoodIterator<TImage> IteratorType;
-//
-//	// Traverse the image adding an edge between the current pixel
-//	// and the pixel below it and the current pixel and the pixel to the right of it.
-//	// This prevents duplicate edges (i.e. we cannot add an edge to
-//	// all 4-connected neighbors of every pixel or almost every edge would be duplicated.
-//	std::vector<typename IteratorType::OffsetType> neighbors;
-//	typename IteratorType::OffsetType bottom = { { 0, 1 } };
-//	neighbors.push_back(bottom);
-//	typename IteratorType::OffsetType right = { { 1, 0 } };
-//	neighbors.push_back(right);
-//
-//	typename IteratorType::OffsetType center = { { 0, 0 } };
-//
-//	IteratorType iterator(radius, this->Image, this->Image->GetLargestPossibleRegion());
-//	iterator.ClearActiveList();
-//	iterator.ActivateOffset(bottom);
-//	iterator.ActivateOffset(right);
-//	iterator.ActivateOffset(center);
-//
-//	// Estimate the "camera noise"
-//	double sigma = this->ComputeNoise();
-//
-//	unsigned int currentNumberOfEdges = num_edges(this->Graph);
-//	for (iterator.GoToBegin(); !iterator.IsAtEnd(); ++iterator)
-//	{
-//		PixelType centerPixel = iterator.GetPixel(center);
-//
-//		for (unsigned int i = 0; i < neighbors.size(); i++)
-//		{
-//			bool valid;
-//			iterator.GetPixel(neighbors[i], valid);
-//
-//			// If the current neighbor is outside the image, skip it
-//			if (!valid)
-//			{
-//				continue;
-//			}
-//
-//			PixelType neighborPixel = iterator.GetPixel(neighbors[i]);
-//
-//			// Compute the Euclidean distance between the pixel intensities
-//			float pixelDifference = PixelDifferenceFunctor.Difference(centerPixel, neighborPixel);
-//
-//			// Compute the edge weight
-//			float weight = exp(-pow(pixelDifference, 2) / (2.0*sigma*sigma));
-//			assert(weight >= 0);
-//
-//			// Add the edge to the graph
-//			unsigned int node1 = this->NodeImage->GetPixel(iterator.GetIndex(center));
-//			unsigned int node2 = this->NodeImage->GetPixel(iterator.GetIndex(neighbors[i]));
-//
-//			currentNumberOfEdges = AddBidirectionalEdge(currentNumberOfEdges, node1, node2, weight);
-//		}
-//	}
-//
+////	unsigned int expectedNumberOfNEdges = 2 * (
+////		imageSize[0] * (imageSize[1] - 1) + // vertical edges
+////		(imageSize[0] - 1) * imageSize[1]  // horizontal edges
+////		);
+////	std::cout << "Resizing for " << expectedNumberOfNEdges << " N-edges." << std::endl;
+////	this->EdgeWeights.resize(num_edges(this->Graph) + expectedNumberOfNEdges);
+////	this->ReverseEdges.resize(num_edges(this->Graph) + expectedNumberOfNEdges);
+////
+////	// We are only using a 4-connected structure,
+////	// so the kernel (iteration neighborhood) must only be
+////	// 3x3 (specified by a radius of 1)
+////	itk::Size<2> radius;
+////	radius.Fill(1);
+////
+////	typedef itk::ShapedNeighborhoodIterator<TImage> IteratorType;
+////
+////	// Traverse the image adding an edge between the current pixel
+////	// and the pixel below it and the current pixel and the pixel to the right of it.
+////	// This prevents duplicate edges (i.e. we cannot add an edge to
+////	// all 4-connected neighbors of every pixel or almost every edge would be duplicated.
+////	std::vector<typename IteratorType::OffsetType> neighbors;
+////	typename IteratorType::OffsetType bottom = { { 0, 1 } };
+////	neighbors.push_back(bottom);
+////	typename IteratorType::OffsetType right = { { 1, 0 } };
+////	neighbors.push_back(right);
+////
+////	typename IteratorType::OffsetType center = { { 0, 0 } };
+////
+////	IteratorType iterator(radius, this->Image, this->Image->GetLargestPossibleRegion());
+////	iterator.ClearActiveList();
+////	iterator.ActivateOffset(bottom);
+////	iterator.ActivateOffset(right);
+////	iterator.ActivateOffset(center);
+////
+////	// Estimate the "camera noise"
+////	double sigma = this->ComputeNoise();
+////
+////	unsigned int currentNumberOfEdges = num_edges(this->Graph);
+////	for (iterator.GoToBegin(); !iterator.IsAtEnd(); ++iterator)
+////	{
+////		PixelType centerPixel = iterator.GetPixel(center);
+////
+////		for (unsigned int i = 0; i < neighbors.size(); i++)
+////		{
+////			bool valid;
+////			iterator.GetPixel(neighbors[i], valid);
+////
+////			// If the current neighbor is outside the image, skip it
+////			if (!valid)
+////			{
+////				continue;
+////			}
+////
+////			PixelType neighborPixel = iterator.GetPixel(neighbors[i]);
+////
+////			// Compute the Euclidean distance between the pixel intensities
+////			float pixelDifference = PixelDifferenceFunctor.Difference(centerPixel, neighborPixel);
+////
+////			// Compute the edge weight
+////			float weight = exp(-pow(pixelDifference, 2) / (2.0*sigma*sigma));
+////			assert(weight >= 0);
+////
+////			// Add the edge to the graph
+////			unsigned int node1 = this->NodeImage->GetPixel(iterator.GetIndex(center));
+////			unsigned int node2 = this->NodeImage->GetPixel(iterator.GetIndex(neighbors[i]));
+////
+////			currentNumberOfEdges = AddBidirectionalEdge(currentNumberOfEdges, node1, node2, weight);
+////		}
+////	}
+////
 	std::cout << "Finished CreateNEdges()" << std::endl;
+}
+
+void ImageGraphCut::CreateNEdges_tumor(Tumor tumor){
+	//TO BE FILLED!
+	return;
 }
 
 int ImageGraphCut::computeTumorProbability(double point_value)
 {
-	return std::floor(100.0*std::exp(-((pow(point_value-MU,2))/(2*pow(SIGMA,2))))/(SIGMA*sqrt(2.0*CHICKEN_PI))/(0.01638972434));
-	//todo: convert to int!
-}
-
-void ImageGraphCut::createEdgesTest()
-{
-	cout << "testing..." << endl;
-	for (int j = 0; j < this->_selection->GetNumberOfPoints(); j++) {
-		this->Graph->add_node();
-	}
-
-	for (int i = 0; i < this->_selection->GetNumberOfPoints()-1; i++){
-		
-		// check if t_edge is to be added
-		if (i == 0) {
-			this->Graph->add_tweights(0, 10, 5);
-		}
-
-		if (i == this->_selection->GetNumberOfPoints() / 2) {
-			this->Graph->add_edge(i, i + 1, 1, 1);
-		}
-		else {
-			//cout << "i is: " << i << endl;
-			this->Graph->add_edge(i, i + 1, 2, 2);
-		}
-	}
-	this->Graph->add_tweights(this->_selection->GetNumberOfPoints()-1, 4, 10);
+	return max(1,(int)std::floor(100.0*std::exp(-((pow(point_value-MU,2))/(2*pow(SIGMA,2))))/(SIGMA*sqrt(2.0*CHICKEN_PI))/(0.01638972434)));
 }
 
 
@@ -302,7 +340,7 @@ void ImageGraphCut::CreateTEdges()
 			continue;
 		}
 		if (selection_scalars->GetValue(i) == NOT_ACTIVE){
-			Graph->add_tweights(i, 1.0 - computeTumorProbability(scalars_CT->GetValue(i)), computeTumorProbability(scalars_CT->GetValue(i)));
+			Graph->add_tweights(i, computeTumorProbability(scalars_CT->GetValue(i)), 50*computeTumorProbability(scalars_CT->GetValue(i)));
 			//Graph->add_tweights(i, std::numeric_limits<float>::max(), std::numeric_limits<float>::max());
 			continue;
 		}
@@ -311,136 +349,90 @@ void ImageGraphCut::CreateTEdges()
 }
 
 
-	
 
-	//// Compute the histograms of the selected foreground and background pixels
-	//CreateSamples();
+void ImageGraphCut::CreateTEdges_tumor(Tumor tumor) {
 
-	//itk::ImageRegionIterator<TImage> imageIterator(this->Image,	this->Image->GetLargestPossibleRegion());
-	//itk::ImageRegionIterator<NodeImageType>	nodeIterator(this->NodeImage, this->NodeImage->GetLargestPossibleRegion());
-	//imageIterator.GoToBegin();
-	//nodeIterator.GoToBegin();
+	std::cout << "CreateTEdges_tumor()" << std::endl;
+	// retreive points' scalars
+	vtkPointData* pointsData = _selection->GetPointData();
+	vtkIntArray* selection_scalars = (vtkIntArray*)pointsData->GetScalars();
 
-	//while (!imageIterator.IsAtEnd())
-	//{
-	//	PixelType pixel = imageIterator.Get();
-	//	//std::cout << "Pixels have size: " << pixel.Size() << std::endl;
+	vtkPointData* pointsDataCT = _CT_image->GetPointData();
+	vtkIntArray* scalars_CT = (vtkIntArray*)pointsDataCT->GetScalars();
+	vtkIdType pointId;
 
-	//	HistogramType::MeasurementVectorType measurementVector(pixel.Size());
-	//	for (unsigned int i = 0; i < pixel.Size(); i++)
-	//	{
-	//		measurementVector[i] = pixel[i];
-	//	}
+	TumorBoundingBox bb = tumor.getBoundingBox();
+	cout << "Bounding Box size:" << endl;
+	cout << "bb.min_x, bb.min_x: " << bb.min_x << ", " << bb.max_x << endl;
+	cout << "bb.min_y, bb.min_y: " << bb.min_y << ", " << bb.max_y << endl;
+	cout << "bb.min_z, bb.min_z: " << bb.min_z << ", " << bb.max_z << endl;
 
-	//	HistogramType::IndexType backgroundIndex;
-	//	this->BackgroundHistogram->GetIndex(measurementVector, backgroundIndex);
-	//	float sinkHistogramValue =
-	//		this->BackgroundHistogram->GetFrequency(backgroundIndex);
+	int counterID = 0;
 
-	//	HistogramType::IndexType foregroundIndex;
-	//	this->ForegroundHistogram->GetIndex(measurementVector, foregroundIndex);
-	//	float sourceHistogramValue =
-	//		this->ForegroundHistogram->GetFrequency(foregroundIndex);
+	for (int i = bb.min_x; i < bb.max_x; i++){
+		for (int j = bb.min_y; j < bb.max_y; j++) {
+			for (int k = bb.min_z; k < bb.max_z; k++){
+				//cout << "***tumor.getTId(): " << tumor.getTId() << endl;
+				
+				GraphType* g = this->_map[tumor.getTId()];
+				g->add_node();
 
-	//	// Conver the histogram value/frequency to make it as if it came from a normalized histogram
-	//	if (this->BackgroundHistogram->GetTotalFrequency() == 0 ||
-	//		this->ForegroundHistogram->GetTotalFrequency() == 0)
-	//	{
-	//		throw std::runtime_error("The foreground or background histogram TotalFrequency is 0!");
-	//	}
+				int point[] = { i, j, k };
+				pointId = _selection->ComputePointId((int*)point);
+				//cout << "pointId: " << pointId << endl;
+				if (selection_scalars->GetValue(pointId) == BACKGROUND)
+				{
+					g->add_tweights(counterID++, std::numeric_limits<int>::min(), std::numeric_limits<int>::max());
+					//cout << "BACKGROUND: selection_scalars->GetValue(pointId) is:  " << selection_scalars->GetValue(pointId) << endl;
+					continue;
+				}
+				if (selection_scalars->GetValue(pointId) == FOREGROUND)
+				{
+					g->add_tweights(counterID++, std::numeric_limits<int>::max(), std::numeric_limits<int>::min());
+					//cout << "FOREGROUND:: selection_scalars->GetValue(pointId) is; " << pointId << endl;
+					continue;
+				}
+				if (selection_scalars->GetValue(pointId) == NOT_ACTIVE){
+					//cout << "not active" << endl;
+					g->add_tweights(counterID++, 100 / computeTumorProbability(scalars_CT->GetValue(pointId)), 100 - (100 / computeTumorProbability(scalars_CT->GetValue(pointId))));
+					continue;
+				}
+			}
+		}
+	}
+	cout << "at the end of CreateTEdges_tumor" << endl;
+}
 
-	//	sinkHistogramValue /= this->BackgroundHistogram->GetTotalFrequency();
-	//	sourceHistogramValue /= this->ForegroundHistogram->GetTotalFrequency();
 
-	//	if (sinkHistogramValue <= 0)
-	//	{
-	//		sinkHistogramValue = tinyValue;
-	//	}
-	//	if (sourceHistogramValue <= 0)
-	//	{
-	//		sourceHistogramValue = tinyValue;
-	//	}
-
-	//	// Add the edge to the graph and set its weight
-	//	// log() is the natural log
-	//	currentNumberOfEdges = AddBidirectionalEdge(currentNumberOfEdges, nodeIterator.Get(), this->SinkNodeId, -this->Lambda*log(sourceHistogramValue));
-	//	currentNumberOfEdges = AddBidirectionalEdge(currentNumberOfEdges, nodeIterator.Get(), this->SourceNodeId, -this->Lambda*log(sinkHistogramValue));
-
-	//	++imageIterator;
-	//	++nodeIterator;
-	//}
-
-	// Set very high source weights for the pixels that were
-	// selected as foreground by the user
-//	for (unsigned int i = 0; i < this->Sources.size(); i++)
-//	{
-//		currentNumberOfEdges = AddBidirectionalEdge(currentNumberOfEdges, this->NodeImage->GetPixel(this->Sources[i]), this->SourceNodeId,
-//			this->Lambda * std::numeric_limits<float>::max());
-//
-//		currentNumberOfEdges = AddBidirectionalEdge(currentNumberOfEdges, this->NodeImage->GetPixel(this->Sources[i]), this->SinkNodeId, 0);
-//	}
-//
-//	// Set very high sink weights for the pixels that
-//	// were selected as background by the user
-//	for (unsigned int i = 0; i < this->Sinks.size(); i++)
-//	{
-//		currentNumberOfEdges = AddBidirectionalEdge(currentNumberOfEdges, this->NodeImage->GetPixel(this->Sinks[i]), this->SourceNodeId, 0);
-//
-//		currentNumberOfEdges = AddBidirectionalEdge(currentNumberOfEdges, this->NodeImage->GetPixel(this->Sinks[i]), this->SinkNodeId,
-//			this->Lambda * std::numeric_limits<float>::max());
-//	}
-//
-//	std::cout << "Finished CreateTEdges()" << std::endl;
-//}
-
+// not using ROIs
 void ImageGraphCut::CreateGraph()
 {
 	cout << "CreateGraph()" << endl;
-
 	Graph = new GraphType(this->_selection->GetNumberOfPoints(), this->_selection->GetNumberOfPoints()*16);
-
 	CreateTEdges();
 	CreateNEdges();
-	//createEdgesTest();
 	cout << "done creating the graph " << endl;
+
 }
 
-//template <typename TImage, typename TPixelDifferenceFunctor>
-//void ImageGraphCut<TImage, TPixelDifferenceFunctor>::CreateGraph()
-//{
-//	std::cout << "CreateGraph()" << std::endl;
-//
-//	// Add all of the nodes to the graph and store their IDs in a "node image"
-//	itk::ImageRegionIterator<NodeImageType> nodeImageIterator(this->NodeImage, this->NodeImage->GetLargestPossibleRegion());
-//	nodeImageIterator.GoToBegin();
-//
-//	unsigned int nodeId = 0;
-//	while (!nodeImageIterator.IsAtEnd())
-//	{
-//		nodeImageIterator.Set(nodeId);
-//		nodeId++;
-//		++nodeImageIterator;
-//	}
-//
-//	// Set the sink and source ids to be the two numbers immediately following the number of vertices in the grid
-//	this->SinkNodeId = nodeId;
-//	nodeId++;
-//	this->SourceNodeId = nodeId;
-//
-//	CreateNEdges();
-//	CreateTEdges();
-//
-//	{
-//		itk::Size<2> imageSize = this->NodeImage->GetLargestPossibleRegion().GetSize();
-//
-//		std::cout << "Number of edges " << num_edges(this->Graph) << std::endl;
-//		int expectedEdges = imageSize[0] * imageSize[1] * 2 * 2 + // one '2' is because there is an edge to both the source and sink from each pixel, and the other '2' is because they are double edges (bidirectional)
-//			2 * (imageSize[0] - 1)*imageSize[1] + 2 * imageSize[0] * (imageSize[1] - 1); // both '2's are for the double edges (this is the number of horizontal edges + the number of vertical edges)
-//		std::cout << "(Should be " << expectedEdges << " edges.)" << std::endl;
-//	}
-//}
-//
-//template <typename TImage, typename TPixelDifferenceFunctor>
+//using ROIs
+void ImageGraphCut::CreateGraphs() {
+
+	for (int i = 0; i < this->_tumors.size(); i++){
+		cout << "generating new graph for tumor number: " << i << "..." << endl;
+		GraphType* g = new GraphType(this->_tumors.at(i).getBBoxSize(), this->_tumors.at(i).getBBoxSize() * 16);
+		this->_map[i] = g;
+
+		CreateTEdges_tumor(this->_tumors.at(i));
+		CreateNEdges_tumor(this->_tumors.at(i));
+		cout << "finished." << endl;
+	}
+
+	cout << "this->_tumors.size(): " << this->_tumors.size() << endl;
+	//cout << "this->_graphs.size(): " << this->_graphs.size() << endl;
+	cout << "this->_map.size()   : " << this->_map.size() << endl;
+}
+
 double ImageGraphCut::ComputeNoise()
 {
 //	// Compute an estimate of the "camera noise". This is used in the N-weight function.
@@ -497,6 +489,25 @@ double ImageGraphCut::ComputeNoise()
 	double sigma = 1.0;
 	return sigma;
 }
+
+bool ImageGraphCut::AddPointToTumor(Tumor::Point3D point){
+	int* extent = this->_selection->GetExtent();
+	Tumor::Point3D limits = { extent[1], extent[3], extent[5] };
+	//limits[0] = extent[1];
+	//limits[1] = extent[3];
+	//limits[2] = extent[5];
+	for (int i = 0; i < this->_tumors.size(); i++){
+		if (_tumors.at(i).isInTumor(point)){
+			_tumors.at(i).addPoint(point, limits);
+			return false;
+		}
+	}
+	Tumor new_tumor(limits);
+	new_tumor.addPoint(point, limits);
+	_tumors.push_back(new_tumor);
+	return true;
+}
+
 //
 //template <typename TImage, typename TPixelDifferenceFunctor>
 //typename ImageGraphCut<TImage, TPixelDifferenceFunctor>::IndexContainer ImageGraphCut<TImage, TPixelDifferenceFunctor>::GetSources()
