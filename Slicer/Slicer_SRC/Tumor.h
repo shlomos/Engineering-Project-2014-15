@@ -43,8 +43,8 @@
 #include <sstream>
 #include <limits>
 
-#define BB_SPACE_XY 20
-#define BB_SPACE_Z  5
+#define BB_SPACE_XY 40
+#define BB_SPACE_Z  8
 
 
 using namespace std;
@@ -59,11 +59,14 @@ typedef struct {
 class Tumor
 {
 public:
-	typedef struct {
+	struct Point3D{
 		int x, y, z;
 		int nil = NULL;
 		int& operator[](int q) { switch (q){ case 0: return x; case 1: return y; case 2: return z; default: return nil; } }
-	}Point3D;
+		Point3D(int _x,int _y,int _z) : x(_x), y(_y), z(_z) {
+
+		}
+	};
 	vector<Tumor::Point3D> points;
 
 	Tumor(Tumor::Point3D limits);
@@ -98,6 +101,9 @@ public:
 
 	/** Returns the estimated size of the bounding box*/
 	int getBBoxSize();
+
+	/** put in neighbors an array with all the neighbors' ids*/
+	void getNeighbors(vtkIdType id,int* neighbors);
 };
 
 #endif

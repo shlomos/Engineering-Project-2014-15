@@ -125,6 +125,8 @@ public:
   /** Create and cut the graph (The main driver function). */
   void PerformSegmentation();
 
+  void ImageGraphCut::Clean();
+
   /** Add point to the closest tumor, if there is one close enough, and create new Tumor if not*/
   bool AddPointToTumor(Tumor::Point3D point);
 
@@ -207,14 +209,14 @@ protected:
   /** Compute the distance between two neighbors pixels*/
   double ComputeDifference(vtkIdType currernt_point, vtkIdType neighbor);
 
-  /** Create a Kolmogorov graph structure from the image and selections */
-  void CreateGraph();
+  ///** Create a Kolmogorov graph structure from the image and selections */
+  //void CreateGraph();
 
-  /** Create the edges between pixels and neighboring pixels (the grid). */
-  void CreateNEdges();
+  ///** Create the edges between pixels and neighboring pixels (the grid). */
+  //void CreateNEdges();
 
-  /** Create the edges between pixels and the terminals (source and sink). */
-  void CreateTEdges();
+  ///** Create the edges between pixels and the terminals (source and sink). */
+  //void CreateTEdges();
 
   //------------------------------
   /** Create the edges between pixels and the terminals (source and sink) for the tumors*/

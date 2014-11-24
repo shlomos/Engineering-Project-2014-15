@@ -77,3 +77,41 @@ int Tumor::getBBoxSize() {
 		   (std::abs(this->bBox.max_y - this->bBox.min_y))*
 		   (std::abs(this->bBox.max_z - this->bBox.min_z));
 }
+
+void Tumor::getNeighbors(vtkIdType id, int* neighbors) {
+	int size_x = this->bBox.max_x - this->bBox.min_x;
+	int size_y = this->bBox.max_y - this->bBox.min_y;
+	int size_z = this->bBox.max_z - this->bBox.min_z;
+	int totalSize = size_x*size_y*size_z;
+	int planeSize = size_x*size_y;
+
+	float idOnPlane = id % planeSize;
+	float myRow = ceil((float)idOnPlane / (float)size_x);
+	
+	//r
+	if (idOnPlane >= max(0.0f,size_x*myRow - 1)){
+		neighbors[0] = -1;
+	}
+	else{
+		neighbors[0] = id + 1;
+	}
+
+	//cout << "asdf movie: " << idOnPlane << "myRow: " << myRow << "size_x: " << size_x << "neighbors[0]: " << neighbors[0] << endl;
+	
+	//u
+	if (myRow >= size_y - 1){
+		neighbors[1] = -1;
+	}
+	else{
+		neighbors[1] = id + size_x;
+	}
+
+	//o
+	if (id > totalSize - size_x*size_y - 1){
+		neighbors[2] = -1;
+	}
+	else{
+		neighbors[2] = id + size_x*size_y;
+	}
+
+}

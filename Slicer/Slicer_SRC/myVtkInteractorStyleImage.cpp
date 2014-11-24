@@ -23,6 +23,7 @@
 #include <vtkPointPicker.h>
 #include <vtkImageMapToColors.h>
 #include <vtkPropPicker.h>
+#include <vtkImageEuclideanDistance.h>
 #include <algorithm>
 #include <vtkCamera.h>
 #include <sstream>
@@ -133,6 +134,7 @@ void myVtkInteractorStyleImage::ResetAll(){
 	for (int i = 0; i < selection->GetNumberOfPoints(); i++){
 		selection_scalars->SetValue(i, NOT_ACTIVE);
 	}
+	this->_graph_cut->Clean();
 	selection_scalars->Modified();
 }
 
@@ -147,9 +149,10 @@ double* myVtkInteractorStyleImage::redrawCrossHair() {
 	double cross_z = 0.0;
 	double* temp;
 	switch (_ImageViewer->GetSliceOrientation()) {
+		//TODO: need to fix the "+number" factor in every set of cross_y value!!
 	case SLICE_ORIENTATION_YZ:
 		cross_y = std::max(size[2], std::min(SCALE_FACTOR*(_x_position + 450), size[3]));
-		cross_z = std::max(size[4], std::min(SCALE_FACTOR*(_y_position + 350), size[5]));
+		cross_z = std::max(size[4], std::min(SCALE_FACTOR*(_y_position /*+ 350*/), size[5]));
 		new_pts->InsertNextPoint(size[1], cross_y, size[4]); // vertical line
 		new_pts->InsertNextPoint(size[1], cross_y, size[5]); // vertical line
 		new_pts->InsertNextPoint(size[1], size[2], cross_z); // horizontal line
@@ -158,7 +161,7 @@ double* myVtkInteractorStyleImage::redrawCrossHair() {
 		temp = new double[3]{ cross_z, cross_y, size[1] };
 		break;
 	case SLICE_ORIENTATION_XZ:
-		cross_z = std::max(size[4], std::min(SCALE_FACTOR*(_y_position + 350), size[5]));
+		cross_z = std::max(size[4], std::min(SCALE_FACTOR*(_y_position /*+ 350*/), size[5]));
 		cross_x = std::max(size[0], std::min(SCALE_FACTOR*_x_position, size[1]));
 		new_pts->InsertNextPoint(size[0], size[2], cross_z); // vertical line
 		new_pts->InsertNextPoint(size[1], size[2], cross_z); // vertical line
@@ -169,7 +172,8 @@ double* myVtkInteractorStyleImage::redrawCrossHair() {
 		break;
 	case SLICE_ORIENTATION_XY:
 		cross_x = std::max(size[0], std::min(SCALE_FACTOR*_x_position, size[1]));
-		cross_y = std::max(size[2], std::min(SCALE_FACTOR*(_y_position + 150), size[3]));
+		cross_y = std::max(size[2], std::min(SCALE_FACTOR*(_y_position /*+ 150*/), size[3]));
+		//cout << "***In SLICE_ORIENTATION_XY. cross_y is: " << cross_y << endl;
 		new_pts->InsertNextPoint(size[0], cross_y, size[5]);
 		new_pts->InsertNextPoint(size[1], cross_y, size[5]);
 		new_pts->InsertNextPoint(cross_x, size[2], size[5]);
@@ -188,11 +192,11 @@ double* myVtkInteractorStyleImage::redrawCrossHair() {
 	return temp;
 }
 void myVtkInteractorStyleImage::SetPainting(bool state) {
-	cout << "Pinting is: " << state << endl;
+	//cout << "Pinting is: " << state << endl;
 	this->_isPainting = state;
 }
 void myVtkInteractorStyleImage::lockSlice(bool state){
-	cout << "slice lock state is " << state << endl;
+	//cout << "slice lock state is " << state << endl;
 	this->_isSliceLocked = state;
 }
 void myVtkInteractorStyleImage::WriteToFile() {
@@ -208,6 +212,10 @@ void myVtkInteractorStyleImage::WriteToFile() {
 typedef void(myVtkInteractorStyleImage::*workerFunction)();
 
 void myVtkInteractorStyleImage::doSegment() {
+	vtkSmartPointer<vtkImageEuclideanDistance> ed3d = vtkSmartPointer<vtkImageEuclideanDistance>::New();
+	//ed3d->SetInputData((vtkImageData*)((vtkImageMapToColors*)_selection_actor->GetMapper()->GetInputAlgorithm())->GetInput());
+	//ed3d->Update();
+	//_graph_cut->SetImage((vtkStructuredPoints*)ed3d->GetOutput(), _CT_image);
 	_graph_cut->SetImage( (vtkStructuredPoints*)((vtkImageMapToColors*)_selection_actor->GetMapper()->GetInputAlgorithm())->GetInput(), _CT_image );
 	_graph_cut->PerformSegmentation();
 	
@@ -419,7 +427,7 @@ void myVtkInteractorStyleImage::ProcessLeapEvents(vtkObject* object, unsigned lo
 			x[2] = cross_1;
 			cout << x[0] << "," << x[1] << "," << x[2] << endl;
 			selection_structured_points->ComputeStructuredCoordinates(x, ijk, pCoord);
-			cout << " cell IJK is: " << ijk[0] << ":" << ijk[1] << ":" << intStyle->_Slice << endl;
+			//cout << " cell IJK is: " << ijk[0] << ":" << ijk[1] << ":" << intStyle->_Slice << endl;
 			ijk[0] = intStyle->_Slice;
 			ijk2[1] = 0;
 			ijk2[2] = 0;

@@ -17,8 +17,13 @@
 
 // Mu and Sigma on GT. right now is mean of all cases
 #define MU         58.404
-#define SIGMA      14.341
+#define SIGMA      4.0
 #define CHICKEN_PI 3.141592
+
+// values for createTEdges
+#define LOWER_BOUND 46
+#define UPPER_BOUND 104
+#define MIN_POSSIBLE_VALUE 3000
 
 enum
 {
