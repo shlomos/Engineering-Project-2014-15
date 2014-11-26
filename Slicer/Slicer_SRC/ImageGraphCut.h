@@ -129,6 +129,7 @@ public:
 
   /** Add point to the closest tumor, if there is one close enough, and create new Tumor if not*/
   bool AddPointToTumor(Tumor::Point3D point);
+  vtkIdType ComputePointId(int i, int j, int k);
 
   /** Return a list of the selected (via scribbling) pixels. */
   //IndexContainer GetSources();
@@ -204,7 +205,7 @@ protected:
   void CreateSamples();
 
   /** Estimate the "camera noise" */
-  double ComputeNoise();
+  double ComputeNoise(Tumor tumor);
 
   /** Compute the distance between two neighbors pixels*/
   double ComputeDifference(vtkIdType currernt_point, vtkIdType neighbor);

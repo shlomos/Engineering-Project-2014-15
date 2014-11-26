@@ -59,8 +59,7 @@ void ImageGraphCut::CutGraphs() {
 		for (int i = bb.min_x; i < bb.max_x; i++){
 			for (int j = bb.min_y; j < bb.max_y; j++) {
 				for (int k = bb.min_z; k < bb.max_z; k++){
-					int point[3] = { i, j, k };
-					id_selection = this->_selection->ComputePointId(point);
+					id_selection = ComputePointId(i,j,k);
 
 					if (this->_map[(*it).getTId()]->what_segment(counterID++) == GraphType::SOURCE) {
 						scalars->SetValue(id_selection, NOT_ACTIVE);
@@ -83,7 +82,6 @@ void ImageGraphCut::CutGraphs() {
 void ImageGraphCut::PerformSegmentation()
 {
 	cout << "perform segmentation()" << endl;
-	int ijk[3];
 	vtkIdType current_point;
 	bool createdNewTumor = true;
 	int* extent = this->_selection->GetExtent();
@@ -96,10 +94,7 @@ void ImageGraphCut::PerformSegmentation()
 		{
 			for (int k = 0; k < extent[5]; k++)
 			{
-				ijk[0] = i;
-				ijk[1] = j;
-				ijk[2] = k;
-				current_point = this->_selection->ComputePointId(ijk);
+				current_point = ComputePointId(i, j, k);
 
 				if (scalars->GetValue(current_point) == FOREGROUND){
 					Tumor::Point3D point = { i, j, k };
@@ -138,10 +133,9 @@ void ImageGraphCut::CreateNEdges_tumor(Tumor tumor){
 
 	int counterID = 0;
 	int neighbors[3];
-	int ijk[3];
 	int weight;
 	float pixelDifference;
-	double sigma = this->ComputeNoise();
+	double sigma = this->ComputeNoise(tumor);
 	vtkIdType current_point, neighbor_point;
 	
 	GraphType* g = this->_map[tumor.getTId()];
@@ -149,43 +143,31 @@ void ImageGraphCut::CreateNEdges_tumor(Tumor tumor){
 	for (int i = bb.min_x; i < bb.max_x; i++){
 		for (int j = bb.min_y; j < bb.max_y; j++) {
 			for (int k = bb.min_z; k < bb.max_z; k++){
-				ijk[0] = i;
-				ijk[1] = j;
-				ijk[2] = k;
-				current_point = this->_selection->ComputePointId(ijk);
+				current_point = ComputePointId(i, j, k);
 
 				tumor.getNeighbors(counterID, neighbors);
 
 				//R
 				if (neighbors[0] != -1){
-					ijk[0] = i+1;
-					ijk[1] = j;
-					ijk[2] = k;
-					neighbor_point = this->_selection->ComputePointId(ijk);
+					neighbor_point = ComputePointId(i+1, j, k);
 					pixelDifference = ComputeDifference(current_point, neighbor_point);
-					weight = 5000 * std::floor(exp(-pow(pixelDifference, 2) / (2.0*sigma*sigma)));
+					weight = 400 * std::floor(exp(-pow(pixelDifference, 2) / (2.0*sigma*sigma)));
 					g->add_edge(counterID, neighbors[0], weight, weight);
 				}
 
 				//U
 				if (neighbors[1] != -1){
-					ijk[0] = i;
-					ijk[1] = j+1;
-					ijk[2] = k;
-					neighbor_point = this->_selection->ComputePointId(ijk);
+					neighbor_point = ComputePointId(i,j+1,k);
 					pixelDifference = ComputeDifference(current_point, neighbor_point);
-					weight = 5000 * std::floor(exp(-pow(pixelDifference, 2) / (2.0*sigma*sigma)));
+					weight = 400 * std::floor(exp(-pow(pixelDifference, 2) / (2.0*sigma*sigma)));
 					g->add_edge(counterID, neighbors[1], weight, weight);
 				}
 
 				//I
 				if (neighbors[2] != -1){
-					ijk[0] = i;
-					ijk[1] = j;
-					ijk[2] = k+1;
-					neighbor_point = this->_selection->ComputePointId(ijk);
+					neighbor_point = ComputePointId(i, j, k+1);
 					pixelDifference = ComputeDifference(current_point, neighbor_point);
-					weight = 5000 * std::floor(exp(-pow(pixelDifference, 2) / (2.0*sigma*sigma)));
+					weight = 400 * std::floor(exp(-pow(pixelDifference, 2) / (2.0*sigma*sigma)));
 					g->add_edge(counterID, neighbors[2], weight, weight);
 				}
 				counterID++;
@@ -399,9 +381,7 @@ void ImageGraphCut::CreateTEdges_tumor(Tumor tumor) {
 				
 				GraphType* g = this->_map[tumor.getTId()];
 				g->add_node();
-
-				int point[] = { i, j, k };
-				pointId = _selection->ComputePointId((int*)point);
+				pointId = ComputePointId(i, j, k);
 				//cout << "pointId: " << pointId << endl;
 				if (selection_scalars->GetValue(pointId) == BACKGROUND)
 				{
@@ -417,10 +397,8 @@ void ImageGraphCut::CreateTEdges_tumor(Tumor tumor) {
 				}
 				if (selection_scalars->GetValue(pointId) == NOT_ACTIVE){					
 					//todo: fix this equation!
-					g->add_tweights(counterID++, std::abs(scalars_CT->GetValue(pointId) - (UPPER_BOUND + LOWER_BOUND) / 2) + MIN_POSSIBLE_VALUE, -std::abs(scalars_CT->GetValue(pointId) -(LOWER_BOUND+UPPER_BOUND) / 2 ) + MIN_POSSIBLE_VALUE + UPPER_BOUND - LOWER_BOUND);
-					//g->add_tweights(counterID++, -std::abs(scalars_CT->GetValue(pointId) - (LOWER_BOUND + UPPER_BOUND) / 2) + MIN_POSSIBLE_VALUE + UPPER_BOUND - LOWER_BOUND, std::abs(scalars_CT->GetValue(pointId) - (UPPER_BOUND - 3 * LOWER_BOUND) / 2) + MIN_POSSIBLE_VALUE);
-					//g->add_tweights(counterID++, std::abs(scalars_CT->GetValue(pointId) - 52), (int)((2958.0 / 42.0)*(3000 - std::abs(scalars_CT->GetValue(pointId) - 52)) - 2958.0*2958.0/42.0 + 42));
-					//g->add_tweights(counterID++, std::abs(scalars_CT->GetValue(pointId) - 57) + 3000, 3094 - std::abs(scalars_CT->GetValue(pointId) - 57));
+					g->add_tweights(counterID++, (int)(std::abs(scalars_CT->GetValue(pointId) - (UPPER_BOUND + LOWER_BOUND) / 2) + MIN_POSSIBLE_VALUE), 
+						(int)(0.99*(-std::abs(scalars_CT->GetValue(pointId) -(LOWER_BOUND+UPPER_BOUND) / 2 ) + MIN_POSSIBLE_VALUE + UPPER_BOUND - LOWER_BOUND)));
 					continue;
 				}
 			}
@@ -447,8 +425,85 @@ void ImageGraphCut::CreateGraphs() {
 	cout << "this->_map.size()   : " << this->_map.size() << endl;
 }
 
-double ImageGraphCut::ComputeNoise()
+vtkIdType ImageGraphCut::ComputePointId(int i, int j, int k)
 {
+	int ijk[3];
+	int* ext = _selection->GetExtent();
+	if (i>=0 && i < ext[1]){
+		if (j>=0 && j < ext[3]){
+			if (k>=0 && k < ext[5]){
+				ijk[0] = i;
+				ijk[1] = j;
+				ijk[2] = k;
+				return _selection->ComputePointId(ijk);
+			}
+		}
+	}
+	return -1;
+}
+
+double ImageGraphCut::ComputeNoise(Tumor tumor)
+{
+	vtkPointData* pointsDataCT = _CT_image->GetPointData();
+	vtkIntArray* scalars_CT = (vtkIntArray*)pointsDataCT->GetScalars();
+	vtkIdType pointId, neighbor;
+
+	vector<Tumor::Point3D> tumor_points = tumor.getPoints();
+	double sigma = 0.0;
+	int edge_counter = 0;
+	int ijk[3];
+
+	for (int i = 0; i < tumor_points.size(); i++)
+	{
+		pointId = ComputePointId(tumor_points.at(i).x, tumor_points.at(i).y, tumor_points.at(i).z);
+		// check neighbors for each point
+
+		//r
+		neighbor = ComputePointId(tumor_points.at(i).x+1, tumor_points.at(i).y, tumor_points.at(i).z);
+		if (neighbor != -1){
+			sigma += ComputeDifference(pointId, neighbor);
+			edge_counter++;
+		}
+
+		//l
+		neighbor = ComputePointId(tumor_points.at(i).x - 1, tumor_points.at(i).y, tumor_points.at(i).z);
+		if (neighbor != -1){
+			sigma += ComputeDifference(pointId, neighbor);
+			edge_counter++;
+		}
+
+		//u
+		neighbor = ComputePointId(tumor_points.at(i).x, tumor_points.at(i).y+1, tumor_points.at(i).z);
+		if (neighbor != -1){
+			sigma += ComputeDifference(pointId, neighbor);
+			edge_counter++;
+		}
+
+		//d
+		neighbor = ComputePointId(tumor_points.at(i).x, tumor_points.at(i).y-1, tumor_points.at(i).z);
+		if (neighbor != -1){
+			sigma += ComputeDifference(pointId, neighbor);
+			edge_counter++;
+		}
+
+
+		//i
+		neighbor = ComputePointId(tumor_points.at(i).x, tumor_points.at(i).y, tumor_points.at(i).z+1);
+		if (neighbor != -1){
+			sigma += ComputeDifference(pointId, neighbor);
+			edge_counter++;
+		}
+
+		//o
+		neighbor = ComputePointId(tumor_points.at(i).x, tumor_points.at(i).y, tumor_points.at(i).z - 1);
+		if (neighbor != -1){
+			sigma += ComputeDifference(pointId, neighbor);
+			edge_counter++;
+		}
+
+	}
+	
+
 //	// Compute an estimate of the "camera noise". This is used in the N-weight function.
 //
 //	// Since we use a 4-connected neighborhood, the kernel must be 3x3 (a rectangular radius of 1 creates a kernel side length of 3)
@@ -500,7 +555,7 @@ double ImageGraphCut::ComputeNoise()
 //	// Normalize
 //	sigma /= static_cast<double>(numberOfEdges);
 //
-	double sigma = 1.0;
+	sigma /= static_cast<double>(edge_counter);
 	return sigma;
 }
 

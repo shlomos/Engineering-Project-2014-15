@@ -21,7 +21,7 @@
 #define CHICKEN_PI 3.141592
 
 // values for createTEdges
-#define LOWER_BOUND 46
+#define LOWER_BOUND 26
 #define UPPER_BOUND 104
 #define MIN_POSSIBLE_VALUE 3000
 
