@@ -22,7 +22,7 @@
 
 // values for createTEdges
 #define LOWER_BOUND 0
-#define UPPER_BOUND 75
+#define UPPER_BOUND 104
 #define MIN_POSSIBLE_VALUE 3000
 #define SILENCING_FACTOR 0.98
 #define NEDGES_FACTOR 1000

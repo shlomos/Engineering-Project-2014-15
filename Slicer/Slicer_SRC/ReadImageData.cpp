@@ -17,6 +17,7 @@
 #include <vtkCallbackCommand.h>
 #include <vtkCellData.h>
 #include <vtkObjectFactory.h>
+#include <vtkImageGaussianSmooth.h>
 #include <vtkRendererCollection.h>
 #include <vtkExtractVOI.h>
 #include <vtkImageMapper3D.h>
@@ -194,6 +195,12 @@ int main(int argc, char* argv[])
 	mapperSel->SetLookupTable(lut);
 	mapperSel->SetInputData(selection);
 	mapperSel->Update();
+	vtkSmartPointer<vtkImageGaussianSmooth> smoothed = vtkSmartPointer<vtkImageGaussianSmooth>::New();
+	smoothed->SetInputConnection(reader->GetOutputPort());
+	smoothed->SetDimensionality(3);
+	smoothed->SetRadiusFactors(50.0,50.0,50.0);
+	//smoothed->SetStandardDeviations(0.0,0.0,0.0);
+	smoothed->Update();
 
 	//First of all set the input for the viewer!
 	viewer->SetInputConnection(reader->GetOutputPort());
@@ -241,8 +248,7 @@ int main(int argc, char* argv[])
 
 	//Segmenter
 	//Segmenter* _segmenter = new Segmenter((vtkStructuredPoints*)(((vtkImageMapToColors*)selectionA->GetMapper()->GetInputAlgorithm()))->GetInput(), reader->GetOutput());
-
-	myInteractorStyle->SetImageViewer(viewer, outputName, selectionA, reader->GetOutput());
+	myInteractorStyle->SetImageViewer(viewer, outputName, selectionA, (vtkStructuredPoints*)smoothed->GetOutput()/*reader->GetOutput()*/);
 	myInteractorStyle->SetStatusMapper(sliceTextMapper);
 	viewer->SetupInteractor(renderWindowInteractor);
 	//mapperSel->SetScalarModeToUseCellData();
