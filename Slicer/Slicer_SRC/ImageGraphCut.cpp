@@ -115,7 +115,12 @@ double ImageGraphCut::ComputeDifference(vtkIdType current_point, vtkIdType neigh
 {
 	vtkPointData* pointsDataCT = _CT_image->GetPointData();
 	vtkIntArray* scalars_CT = (vtkIntArray*)pointsDataCT->GetScalars();
-	return ((double)std::abs(scalars_CT->GetValue(neighbor_point) - scalars_CT->GetValue(current_point)));
+	// Fix overflow of unsigned type.
+	double me = scalars_CT->GetValue(current_point) <= MIN_POSSIBLE_VALUE ? scalars_CT->GetValue(current_point) : (-1)*(65535 - scalars_CT->GetValue(current_point));
+	double neighbor = scalars_CT->GetValue(neighbor_point) <= MIN_POSSIBLE_VALUE ? scalars_CT->GetValue(neighbor_point) : (-1)*(65535 - scalars_CT->GetValue(neighbor_point));
+	//cout <<"neighboor "<< scalars_CT->GetValue(neighbor_point) << endl;
+	//cout <<"me "<< scalars_CT->GetValue(current_point) << endl;
+	return ((double)std::abs(neighbor - me));
 }
 
 void ImageGraphCut::CreateNEdges_tumor(Tumor tumor){
@@ -151,7 +156,7 @@ void ImageGraphCut::CreateNEdges_tumor(Tumor tumor){
 				if (neighbors[0] != -1){
 					neighbor_point = ComputePointId(i+1, j, k);
 					pixelDifference = ComputeDifference(current_point, neighbor_point);
-					weight = 400 * std::floor(exp(-pow(pixelDifference, 2) / (2.0*sigma*sigma)));
+					weight =  std::floor(exp(-pow(pixelDifference, 2) / (2.0*sigma*sigma)));
 					g->add_edge(counterID, neighbors[0], weight, weight);
 				}
 
@@ -159,7 +164,7 @@ void ImageGraphCut::CreateNEdges_tumor(Tumor tumor){
 				if (neighbors[1] != -1){
 					neighbor_point = ComputePointId(i,j+1,k);
 					pixelDifference = ComputeDifference(current_point, neighbor_point);
-					weight = 400 * std::floor(exp(-pow(pixelDifference, 2) / (2.0*sigma*sigma)));
+					weight = std::floor(exp(-pow(pixelDifference, 2) / (2.0*sigma*sigma)));
 					g->add_edge(counterID, neighbors[1], weight, weight);
 				}
 
@@ -167,7 +172,7 @@ void ImageGraphCut::CreateNEdges_tumor(Tumor tumor){
 				if (neighbors[2] != -1){
 					neighbor_point = ComputePointId(i, j, k+1);
 					pixelDifference = ComputeDifference(current_point, neighbor_point);
-					weight = 400 * std::floor(exp(-pow(pixelDifference, 2) / (2.0*sigma*sigma)));
+					weight = std::floor(exp(-pow(pixelDifference, 2) / (2.0*sigma*sigma)));
 					g->add_edge(counterID, neighbors[2], weight, weight);
 				}
 				counterID++;
@@ -385,20 +390,21 @@ void ImageGraphCut::CreateTEdges_tumor(Tumor tumor) {
 				//cout << "pointId: " << pointId << endl;
 				if (selection_scalars->GetValue(pointId) == BACKGROUND)
 				{
-					g->add_tweights(counterID++, std::numeric_limits<int>::min(), std::numeric_limits<int>::max());
+					g->add_tweights(counterID++, std::numeric_limits<int>::max(), 0/*std::numeric_limits<int>::min()*/);
 					//cout << "BACKGROUND: selection_scalars->GetValue(pointId) is:  " << selection_scalars->GetValue(pointId) << endl;
 					continue;
 				}
 				if (selection_scalars->GetValue(pointId) == FOREGROUND)
 				{
-					g->add_tweights(counterID++, std::numeric_limits<int>::max(), std::numeric_limits<int>::min());
+					g->add_tweights(counterID++, /*std::numeric_limits<int>::min()*/0, std::numeric_limits<int>::max());
 					//cout << "FOREGROUND:: selection_scalars->GetValue(pointId) is; " << pointId << endl;
 					continue;
 				}
 				if (selection_scalars->GetValue(pointId) == NOT_ACTIVE){					
 					//todo: fix this equation!
-					g->add_tweights(counterID++, (int)(std::abs(scalars_CT->GetValue(pointId) - (UPPER_BOUND + LOWER_BOUND) / 2) + MIN_POSSIBLE_VALUE), 
-						(int)(0.99*(-std::abs(scalars_CT->GetValue(pointId) -(LOWER_BOUND+UPPER_BOUND) / 2 ) + MIN_POSSIBLE_VALUE + UPPER_BOUND - LOWER_BOUND)));
+					int me = scalars_CT->GetValue(pointId) <= MIN_POSSIBLE_VALUE ? scalars_CT->GetValue(pointId) : (-1)*(65535 - scalars_CT->GetValue(pointId));
+					g->add_tweights(counterID++, (int)(std::abs(me - (UPPER_BOUND + LOWER_BOUND) / 2) + MIN_POSSIBLE_VALUE), 
+						(int)(SILENCING_FACTOR*(-std::abs(me - (LOWER_BOUND+UPPER_BOUND) / 2 ) + MIN_POSSIBLE_VALUE + UPPER_BOUND - LOWER_BOUND)));
 					continue;
 				}
 			}
@@ -451,7 +457,6 @@ double ImageGraphCut::ComputeNoise(Tumor tumor)
 	vector<Tumor::Point3D> tumor_points = tumor.getPoints();
 	double sigma = 0.0;
 	int edge_counter = 0;
-	int ijk[3];
 
 	for (int i = 0; i < tumor_points.size(); i++)
 	{

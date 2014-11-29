@@ -22,6 +22,7 @@
 #include <vtkCellPicker.h>
 #include <vtkPointPicker.h>
 #include <vtkImageMapToColors.h>
+#include <vtkImageOpenClose3D.h>
 #include <vtkPropPicker.h>
 #include <vtkImageEuclideanDistance.h>
 #include <algorithm>
@@ -216,9 +217,18 @@ void myVtkInteractorStyleImage::doSegment() {
 	//ed3d->SetInputData((vtkImageData*)((vtkImageMapToColors*)_selection_actor->GetMapper()->GetInputAlgorithm())->GetInput());
 	//ed3d->Update();
 	//_graph_cut->SetImage((vtkStructuredPoints*)ed3d->GetOutput(), _CT_image);
-	_graph_cut->SetImage( (vtkStructuredPoints*)((vtkImageMapToColors*)_selection_actor->GetMapper()->GetInputAlgorithm())->GetInput(), _CT_image );
+	vtkStructuredPoints* selection_structured_points = (vtkStructuredPoints*)((vtkImageMapToColors*)_selection_actor->GetMapper()->GetInputAlgorithm())->GetInput();
+	_graph_cut->SetImage( selection_structured_points, _CT_image );
 	_graph_cut->PerformSegmentation();
-	
+	vtkSmartPointer<vtkImageOpenClose3D> openClose =
+		vtkSmartPointer<vtkImageOpenClose3D>::New();
+	openClose->SetInputData(selection_structured_points);
+	openClose->SetOpenValue(NOT_ACTIVE);
+	openClose->SetCloseValue(FOREGROUND);
+	openClose->SetKernelSize(XY_OPENCLOSE, XY_OPENCLOSE, Z_OPENCLOSE);
+	openClose->ReleaseDataFlagOff();
+	openClose->Update();
+	((vtkImageMapToColors*)_selection_actor->GetMapper()->GetInputAlgorithm())->SetInputData(openClose->GetOutput());
 }
 
 void myVtkInteractorStyleImage::OnKeyUp() {}
