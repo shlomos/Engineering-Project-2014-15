@@ -44,6 +44,7 @@
 #include <vtkCamera.h>
 #include <sstream>
 #include "ImageGraphCut.h"
+#include "MarchingCubes.h"
 
 #include <boost/thread.hpp>
 
@@ -84,6 +85,7 @@ protected:
 	vtkSmartPointer<vtkImageViewer2> _ImageViewer;
 	vtkTextMapper* _StatusMapper;
 	ImageGraphCut* _graph_cut;
+	MarchingCubes* _marching_cubes;
 	int _orientation;
 	int _MinSlice;
 	int _MaxSlice;
@@ -100,6 +102,7 @@ protected:
 		unsigned long event,
 		void* clientdata,
 		void* calldata);
+	bool _flipped_view;
 
 public:
 	myVtkInteractorStyleImage();
@@ -119,6 +122,7 @@ protected:
 	void ToggleOrientation();
 	void WriteToFile();
 	void LoadFromFile();
+	void marchingCubes();
 	void ResetAll();
 	virtual void OnKeyDown();
 	virtual void OnKeyUp();

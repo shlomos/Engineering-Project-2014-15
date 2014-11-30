@@ -7,9 +7,7 @@
 #include <vtkStructuredPoints.h>
 #include <vtkStructuredPointsReader.h>
 #include <vtkImageViewer2.h>
-#include <vtkRenderWindow.h>
 #include <vtkRenderWindowInteractor.h>
-#include <vtkRenderer.h>
 #include <vtkLine.h>
 #include <vtkActor.h>
 #include <vtkImageBlend.h>
@@ -18,7 +16,6 @@
 #include <vtkCellData.h>
 #include <vtkObjectFactory.h>
 #include <vtkImageGaussianSmooth.h>
-#include <vtkRendererCollection.h>
 #include <vtkExtractVOI.h>
 #include <vtkImageMapper3D.h>
 #include <vtkCellArray.h>
@@ -155,8 +152,6 @@ int main(int argc, char* argv[])
 		vtkSmartPointer<vtkImageViewer2>::New();
 
 	//interaction
-	vtkSmartPointer<vtkRenderWindowInteractor>interactor =
-		vtkSmartPointer<vtkRenderWindowInteractor>::New();
 	vtkSmartPointer<vtkRenderWindowInteractor> renderWindowInteractor =
 		vtkSmartPointer<vtkRenderWindowInteractor>::New();
 

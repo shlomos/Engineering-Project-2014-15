@@ -20,7 +20,7 @@
 #define SIGMA      4.0
 #define CHICKEN_PI 3.141592
 
-// values for createTEdges
+// graphCuts related values
 #define LOWER_BOUND 0
 #define UPPER_BOUND 104
 #define MIN_POSSIBLE_VALUE 3000
@@ -28,6 +28,9 @@
 #define NEDGES_FACTOR 1000
 #define XY_OPENCLOSE 5
 #define Z_OPENCLOSE 2
+
+// 
+#define ISO_VALUE 0.1
 
 enum
 {

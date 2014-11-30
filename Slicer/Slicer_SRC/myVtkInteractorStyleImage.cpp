@@ -51,6 +51,7 @@ void myVtkInteractorStyleImage::SetImageViewer(vtkImageViewer2* imageViewer, std
 	_isPainting = false;
 	_selection_actor = selection_actor;
 	_CT_image = CT_image;
+	_flipped_view = true;
 	cout << "Slicer: Min = " << _MinSlice << ", Max = " << _MaxSlice << ", Orientation: " << _orientation << std::endl;
 }
 void myVtkInteractorStyleImage::SetStatusMapper(vtkTextMapper* statusMapper) {
@@ -109,12 +110,15 @@ void myVtkInteractorStyleImage::ToggleOrientation() {
 	_ImageViewer->Render();
 	std::string msg = StatusMessage::Format(_ImageViewer->GetSliceMin(), _ImageViewer->GetSliceMax(), _ImageViewer->GetSliceOrientation());
 	_StatusMapper->SetInput(msg.c_str());
+
+	this->_marching_cubes->flipView(_flipped_view);
+	this->_flipped_view = _flipped_view ? false : true;
 }
 
 void myVtkInteractorStyleImage::LoadFromFile(){
-	string filename; 
-	cout << "Please enter the filename of the segmentation to load:" << endl;
-	cin >> filename;
+	string filename = "ref.vtk"; 
+	cout << "Please enter the filename of the segmentation to load:... Done. Using \"ref.vtk\".." << endl;
+	//cin >> filename;
 	vtkSmartPointer<vtkStructuredPointsReader> sLoader =
 		vtkSmartPointer<vtkStructuredPointsReader>::New();
 	sLoader->SetFileName(filename.c_str());
@@ -231,6 +235,15 @@ void myVtkInteractorStyleImage::doSegment() {
 	((vtkImageMapToColors*)_selection_actor->GetMapper()->GetInputAlgorithm())->SetInputData(openClose->GetOutput());
 }
 
+void myVtkInteractorStyleImage::marchingCubes() {
+	cout << "in marchingCubes() " << endl;
+	vtkStructuredPoints* selection_structured_points = (vtkStructuredPoints*)((vtkImageMapToColors*)_selection_actor->GetMapper()->GetInputAlgorithm())->GetInput();
+	_marching_cubes = new MarchingCubes(selection_structured_points/*selection_structured_points*/);
+	_marching_cubes->render3D();
+	cout << "End of marchingCubes ctor" << endl;
+
+}
+
 void myVtkInteractorStyleImage::OnKeyUp() {}
 void myVtkInteractorStyleImage::OnMouseMove(){
 	this->_x_position = this->Interactor->GetEventPosition()[0]-700;
@@ -265,8 +278,8 @@ void myVtkInteractorStyleImage::OnKeyDown() {
 	else if (key.compare("s") == 0) {
 		WriteToFile();
 	}
-	else if (key.compare("p") == 0) {
-		return;
+	else if (key.compare("a") == 0) {
+		cout << "a was pressed!!" << endl;
 	}
 	else if (key.compare("r") == 0) {
 		this->ResetAll();
@@ -282,6 +295,11 @@ void myVtkInteractorStyleImage::OnKeyDown() {
 		// update mapper to show segmentation
 		this->_selection_actor->GetMapper()->Update();
 		this->_ImageViewer->Render();
+	}
+	else if (key.compare("m") == 0) {
+		cout << "marching cubes event!" << endl;
+		this->marchingCubes();
+		cout << "End of Marching Cubes event!" << endl;
 	}
 	// forward event
 }
