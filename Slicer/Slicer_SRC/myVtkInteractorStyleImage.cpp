@@ -23,11 +23,13 @@
 #include <vtkPointPicker.h>
 #include <vtkImageMapToColors.h>
 #include <vtkImageOpenClose3D.h>
+#include <vtkConnectivityFilter.h>
 #include <vtkPropPicker.h>
 #include <vtkImageEuclideanDistance.h>
 #include <algorithm>
 #include <vtkCamera.h>
 #include <sstream>
+#include <vtkDelaunay3D.h>
 
 
 myVtkInteractorStyleImage::myVtkInteractorStyleImage()
@@ -51,7 +53,6 @@ void myVtkInteractorStyleImage::SetImageViewer(vtkImageViewer2* imageViewer, std
 	_isPainting = false;
 	_selection_actor = selection_actor;
 	_CT_image = CT_image;
-	_flipped_view = true;
 	cout << "Slicer: Min = " << _MinSlice << ", Max = " << _MaxSlice << ", Orientation: " << _orientation << std::endl;
 }
 void myVtkInteractorStyleImage::SetStatusMapper(vtkTextMapper* statusMapper) {
@@ -111,12 +112,10 @@ void myVtkInteractorStyleImage::ToggleOrientation() {
 	std::string msg = StatusMessage::Format(_ImageViewer->GetSliceMin(), _ImageViewer->GetSliceMax(), _ImageViewer->GetSliceOrientation());
 	_StatusMapper->SetInput(msg.c_str());
 
-	this->_marching_cubes->flipView(_flipped_view);
-	this->_flipped_view = _flipped_view ? false : true;
 }
 
 void myVtkInteractorStyleImage::LoadFromFile(){
-	string filename = "ref.vtk"; 
+	string filename = "ref.vtk";
 	cout << "Please enter the filename of the segmentation to load:... Done. Using \"ref.vtk\".." << endl;
 	//cin >> filename;
 	vtkSmartPointer<vtkStructuredPointsReader> sLoader =
@@ -214,6 +213,35 @@ void myVtkInteractorStyleImage::WriteToFile() {
 	cout << "Done." << endl;
 }
 
+void myVtkInteractorStyleImage::translateToStructuredPoints(vtkUnstructuredGrid* component, vtkStructuredPoints* temp){
+	vtkPoints* compoPoints = component->GetPoints();
+
+	vtkPointData* pointData = temp->GetPointData();
+	vtkIntArray* selection_scalars = (vtkIntArray*)pointData->GetScalars();
+	vtkPointData* cPointData = component->GetPointData();
+	vtkIntArray* c_selection_scalars = (vtkIntArray*)cPointData->GetScalars();
+
+	double x[3];
+	int* ijk;
+	double pCoord[3];
+	vtkIdType id;
+	for (int i = 0; i < compoPoints->GetNumberOfPoints(); i++){
+		if (c_selection_scalars->GetValue(i) != c_selection_scalars->GetValue(max(0, i - 1))){
+			cout << c_selection_scalars->GetValue(i) << endl;
+		}
+		selection_scalars->SetValue(i, c_selection_scalars->GetValue(i));
+		/*compoPoints->GetPoint(i, x);
+		cout << component->GetNumberOfPoints() << " vs in all " << temp->GetNumberOfPoints() << endl;
+		if (temp->ComputeStructuredCoordinates(x, ijk, pCoord) != 0){
+		id = temp->ComputePointId(ijk);
+		if (id != -1){
+		selection_scalars->SetValue(id, FOREGROUND);
+		}
+		}*/
+	}
+	selection_scalars->Modified();
+}
+
 typedef void(myVtkInteractorStyleImage::*workerFunction)();
 
 void myVtkInteractorStyleImage::doSegment() {
@@ -222,31 +250,80 @@ void myVtkInteractorStyleImage::doSegment() {
 	//ed3d->Update();
 	//_graph_cut->SetImage((vtkStructuredPoints*)ed3d->GetOutput(), _CT_image);
 	vtkStructuredPoints* selection_structured_points = (vtkStructuredPoints*)((vtkImageMapToColors*)_selection_actor->GetMapper()->GetInputAlgorithm())->GetInput();
-	_graph_cut->SetImage( selection_structured_points, _CT_image );
+	_graph_cut->SetImage(selection_structured_points, _CT_image);
 	_graph_cut->PerformSegmentation();
-	vtkSmartPointer<vtkImageOpenClose3D> openClose =
-		vtkSmartPointer<vtkImageOpenClose3D>::New();
-	openClose->SetInputData(selection_structured_points);
-	openClose->SetOpenValue(NOT_ACTIVE);
-	openClose->SetCloseValue(FOREGROUND);
-	openClose->SetKernelSize(XY_OPENCLOSE, XY_OPENCLOSE, Z_OPENCLOSE);
-	openClose->ReleaseDataFlagOff();
-	openClose->Update();
-	((vtkImageMapToColors*)_selection_actor->GetMapper()->GetInputAlgorithm())->SetInputData(openClose->GetOutput());
+	vtkStructuredPoints* temp = selection_structured_points;
+	cout << "in selection_structured_points there are: " << selection_structured_points->GetNumberOfPoints() << " points." << endl;
+	for (int i = 0; i < NUM_ITER_OPENCLOSE; i++){
+		vtkSmartPointer<vtkImageOpenClose3D> openClose =
+			vtkSmartPointer<vtkImageOpenClose3D>::New();
+		openClose->SetInputData(temp);
+		openClose->SetOpenValue(NOT_ACTIVE);
+		openClose->SetCloseValue(FOREGROUND);
+		openClose->SetKernelSize(XY_OPENCLOSE, XY_OPENCLOSE, Z_OPENCLOSE);
+		openClose->ReleaseDataFlagOff();
+		openClose->Update();
+	}
+	cout << "1) in temp there are: " << temp->GetNumberOfPoints() << " points."<< endl;
+
+	//vtkSmartPointer<vtkDelaunay3D> delaunay1 =
+	//	vtkSmartPointer<vtkDelaunay3D>::New();
+	//delaunay1->SetInputData(temp);
+	//delaunay1->Update();
+
+
+	//vtkSmartPointer<vtkConnectivityFilter> connectivityFilter =
+	//	vtkSmartPointer<vtkConnectivityFilter>::New();
+	////connectivityFilter->SetInputData(temp);
+	//connectivityFilter->SetInputData(delaunay1->GetOutput());
+	//connectivityFilter->SetScalarRange(1.0,1.0);
+	//connectivityFilter->SetExtractionModeToLargestRegion(); //TODO: points seeds
+	//cout << "2) in temp there are: " << temp->GetNumberOfPoints() << " points." << endl;// "connectivityFilter->GetScalarRange[0]:connectivityFilter->GetScalarRange[1] " << connectivityFilter->GetScalarRange()[0] << ":" << connectivityFilter->GetScalarRange()[1] << endl;
+	//connectivityFilter->ColorRegionsOn();
+	//connectivityFilter->Update();
+	//cout << "c1" << endl;
+	// Visualize
+	vtkSmartPointer<vtkDataSetMapper> mapper =
+		vtkSmartPointer<vtkDataSetMapper>::New();
+	mapper->SetInputData(temp);
+	mapper->Update();
+	cout << "c2" << endl;
+	vtkSmartPointer<vtkActor> actor =
+		vtkSmartPointer<vtkActor>::New();
+	actor->SetMapper(mapper);
+	cout << "c3" << endl;
+	vtkSmartPointer<vtkRenderer> renderer =
+		vtkSmartPointer<vtkRenderer>::New();
+	renderer->AddActor(actor);
+
+	vtkSmartPointer<vtkRenderWindow> renwin =
+		vtkSmartPointer<vtkRenderWindow>::New();
+	renwin->AddRenderer(renderer);
+	cout << "c4" << endl;
+	vtkSmartPointer<vtkRenderWindowInteractor> iren =
+		vtkSmartPointer<vtkRenderWindowInteractor>::New();
+	iren->SetRenderWindow(renwin);
+	iren->Initialize();
+	iren->Start();
+	cout << "c5" << endl;
+	//vtkUnstructuredGrid* component = connectivityFilter->GetOutput();
+	//translateToStructuredPoints(component, temp);
+	((vtkImageMapToColors*)_selection_actor->GetMapper()->GetInputAlgorithm())->SetInputData(temp);
+	//_selection_actor->Update();
+	cout << "CHECK!" << endl;
 }
 
 void myVtkInteractorStyleImage::marchingCubes() {
 	cout << "in marchingCubes() " << endl;
 	vtkStructuredPoints* selection_structured_points = (vtkStructuredPoints*)((vtkImageMapToColors*)_selection_actor->GetMapper()->GetInputAlgorithm())->GetInput();
 	_marching_cubes = new MarchingCubes(selection_structured_points/*selection_structured_points*/);
-	_marching_cubes->render3D();
 	cout << "End of marchingCubes ctor" << endl;
 
 }
 
 void myVtkInteractorStyleImage::OnKeyUp() {}
 void myVtkInteractorStyleImage::OnMouseMove(){
-	this->_x_position = this->Interactor->GetEventPosition()[0]-700;
+	this->_x_position = this->Interactor->GetEventPosition()[0] - 700;
 	this->_y_position = this->Interactor->GetEventPosition()[1];
 }
 void myVtkInteractorStyleImage::OnKeyDown() {
@@ -464,9 +541,9 @@ void myVtkInteractorStyleImage::ProcessLeapEvents(vtkObject* object, unsigned lo
 			maxX = std::min(ijk[2] + intStyle->_drawSize, selExt[5]);
 			minY = std::max(ijk[1] - intStyle->_drawSize, 0);
 			maxY = std::min(ijk[1] + intStyle->_drawSize, selExt[3]);
-			for (int i = minX; i<maxX; i++){
+			for (int i = minX; i < maxX; i++){
 				ijk2[2] = i;
-				for (int j = minY; j<maxY; j++){
+				for (int j = minY; j < maxY; j++){
 					ijk2[1] = j;
 					vtkIdType cellId = selection_structured_points->ComputePointId(ijk2);
 					selection_scalars->SetValue(cellId, FOREGROUND);
@@ -488,9 +565,9 @@ void myVtkInteractorStyleImage::ProcessLeapEvents(vtkObject* object, unsigned lo
 			maxX = std::min(ijk[0] + intStyle->_drawSize, selExt[1]);
 			minY = std::max(ijk[2] - intStyle->_drawSize, 0);
 			maxY = std::min(ijk[2] + intStyle->_drawSize, selExt[5]);
-			for (int i = minX; i<maxX; i++){
+			for (int i = minX; i < maxX; i++){
 				ijk2[0] = i;
-				for (int j = minY; j<maxY; j++){
+				for (int j = minY; j < maxY; j++){
 					ijk2[2] = j;
 					vtkIdType cellId = selection_structured_points->ComputePointId(ijk2);
 					selection_scalars->SetValue(cellId, FOREGROUND);
@@ -512,9 +589,9 @@ void myVtkInteractorStyleImage::ProcessLeapEvents(vtkObject* object, unsigned lo
 			maxX = std::min(ijk[0] + intStyle->_drawSize, selExt[1]);
 			minY = std::max(ijk[1] - intStyle->_drawSize, 0);
 			maxY = std::min(ijk[1] + intStyle->_drawSize, selExt[3]);
-			for (int i = minX; i<maxX; i++){
+			for (int i = minX; i < maxX; i++){
 				ijk2[0] = i;
-				for (int j = minY; j<maxY; j++){
+				for (int j = minY; j < maxY; j++){
 					ijk2[1] = j;
 					vtkIdType cellId = selection_structured_points->ComputePointId(ijk2);
 					selection_scalars->SetValue(cellId, FOREGROUND);
@@ -548,9 +625,9 @@ void myVtkInteractorStyleImage::ProcessLeapEvents(vtkObject* object, unsigned lo
 		int maxX = std::min(ijk[0] + intStyle->_drawSize, selExt[1]);
 		int minY = std::max(ijk[1] - intStyle->_drawSize, 0);
 		int maxY = std::min(ijk[1] + intStyle->_drawSize, selExt[3]);
-		for (int i = minX; i<maxX; i++){
+		for (int i = minX; i < maxX; i++){
 			ijk2[0] = i;
-			for (int j = minY; j<maxY; j++){
+			for (int j = minY; j < maxY; j++){
 				ijk2[1] = j;
 				vtkIdType cellId = selection_structured_points->ComputePointId(ijk2);
 				selection_scalars->SetValue(cellId, BACKGROUND);

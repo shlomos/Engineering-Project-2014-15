@@ -193,7 +193,7 @@ int main(int argc, char* argv[])
 	vtkSmartPointer<vtkImageGaussianSmooth> smoothed = vtkSmartPointer<vtkImageGaussianSmooth>::New();
 	smoothed->SetInputConnection(reader->GetOutputPort());
 	smoothed->SetDimensionality(3);
-	smoothed->SetRadiusFactors(50.0,50.0,50.0);
+	smoothed->SetRadiusFactors(SMOOTHING_FACTOR_XY, SMOOTHING_FACTOR_XY, SMOOTHING_FACTOR_Z);
 	//smoothed->SetStandardDeviations(0.0,0.0,0.0);
 	smoothed->Update();
 

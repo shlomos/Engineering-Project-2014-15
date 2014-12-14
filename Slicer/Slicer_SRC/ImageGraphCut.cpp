@@ -220,22 +220,24 @@ void ImageGraphCut::CreateTEdges_tumor(Tumor tumor) {
 				GraphType* g = this->_map[tumor.getTId()];
 				g->add_node();
 				pointId = ComputePointId(i, j, k);
+
+				int me = scalars_CT->GetValue(pointId) <= MIN_POSSIBLE_VALUE ? scalars_CT->GetValue(pointId) : (-1)*(65535 - scalars_CT->GetValue(pointId));
+
 				//cout << "pointId: " << pointId << endl;
 				if (selection_scalars->GetValue(pointId) == BACKGROUND)
 				{
-					g->add_tweights(counterID++, std::numeric_limits<int>::max(), 0/*std::numeric_limits<int>::min()*/);
+					g->add_tweights(counterID++, std::numeric_limits<int>::max(), (int)(SILENCING_FACTOR*(-std::abs(me - (LOWER_BOUND + UPPER_BOUND) / 2) + MIN_POSSIBLE_VALUE + UPPER_BOUND - LOWER_BOUND))/*std::numeric_limits<int>::min()*/);
 					//cout << "BACKGROUND: selection_scalars->GetValue(pointId) is:  " << selection_scalars->GetValue(pointId) << endl;
 					continue;
 				}
 				if (selection_scalars->GetValue(pointId) == FOREGROUND)
 				{
-					g->add_tweights(counterID++, /*std::numeric_limits<int>::min()*/0, std::numeric_limits<int>::max());
+					g->add_tweights(counterID++, /*std::numeric_limits<int>::min()*/(int)(std::abs(me - (UPPER_BOUND + LOWER_BOUND) / 2) + MIN_POSSIBLE_VALUE), std::numeric_limits<int>::max());
 					//cout << "FOREGROUND:: selection_scalars->GetValue(pointId) is; " << pointId << endl;
 					continue;
 				}
 				if (selection_scalars->GetValue(pointId) == NOT_ACTIVE){					
 					//todo: fix this equation!
-					int me = scalars_CT->GetValue(pointId) <= MIN_POSSIBLE_VALUE ? scalars_CT->GetValue(pointId) : (-1)*(65535 - scalars_CT->GetValue(pointId));
 					g->add_tweights(counterID++, (int)(std::abs(me - (UPPER_BOUND + LOWER_BOUND) / 2) + MIN_POSSIBLE_VALUE), 
 						(int)(SILENCING_FACTOR*(-std::abs(me - (LOWER_BOUND+UPPER_BOUND) / 2 ) + MIN_POSSIBLE_VALUE + UPPER_BOUND - LOWER_BOUND)));
 					continue;

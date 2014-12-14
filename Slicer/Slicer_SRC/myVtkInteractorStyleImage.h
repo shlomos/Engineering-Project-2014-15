@@ -39,6 +39,7 @@
 #include <vtkCellPicker.h>
 #include <vtkPointPicker.h>
 #include <vtkImageMapToColors.h>
+#include <vtkUnstructuredGrid.h>
 #include <vtkPropPicker.h>
 #include <algorithm>
 #include <vtkCamera.h>
@@ -102,7 +103,6 @@ protected:
 		unsigned long event,
 		void* clientdata,
 		void* calldata);
-	bool _flipped_view;
 
 public:
 	myVtkInteractorStyleImage();
@@ -121,6 +121,7 @@ protected:
 	void MoveSliceBackward();
 	void ToggleOrientation();
 	void WriteToFile();
+	void translateToStructuredPoints(vtkUnstructuredGrid* component, vtkStructuredPoints* temp);
 	void LoadFromFile();
 	void marchingCubes();
 	void ResetAll();

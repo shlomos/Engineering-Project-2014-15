@@ -24,25 +24,22 @@
 #include <vtkCamera.h>
 
 
-
+/** This class is reponsible for creating the mesh using MarchingCubes algorithm*/
 class MarchingCubes {
 	
 public:
 	MarchingCubes(vtkStructuredPoints* selection);
 	~MarchingCubes();
 	
-	void render3D();
-	void flipView(bool flip);
 private:
 	vtkSmartPointer<vtkMarchingCubes>  _surface;
-	vtkSmartPointer<vtkRenderer>       _renderer;
-	vtkSmartPointer<vtkRenderWindow>   _renderWindow;
 	vtkSmartPointer<vtkRenderWindowInteractor> _renderWindowInteractor;
 	vtkSmartPointer<vtkPolyDataMapper> _mapper;
 	vtkSmartPointer<vtkActor>          _actor;
 	vtkSmartPointer<vtkImageMaskBits>  _mask;
 
 	vtkSmartPointer<vtkImageViewer2>   _viewer;
+	vtkStructuredPoints* _selection;
 
 };
 
