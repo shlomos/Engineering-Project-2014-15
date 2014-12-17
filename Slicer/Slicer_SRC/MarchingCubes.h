@@ -22,6 +22,7 @@
 #include <vtkImageViewer2.h>
 #include <vtkImageMaskBits.h>
 #include <vtkCamera.h>
+#include "myVtkInteractorStyleImage3D.h"
 
 
 /** This class is reponsible for creating the mesh using MarchingCubes algorithm*/
@@ -33,12 +34,14 @@ public:
 	
 private:
 	vtkSmartPointer<vtkMarchingCubes>  _surface;
-	vtkSmartPointer<vtkRenderWindowInteractor> _renderWindowInteractor;
+	vtkSmartPointer<vtkRenderer>       _renderer;
+	vtkSmartPointer<vtkRenderWindow>   _renderWindow;
+	vtkSmartPointer<vtkRenderWindowInteractor> _interactor;
 	vtkSmartPointer<vtkPolyDataMapper> _mapper;
 	vtkSmartPointer<vtkActor>          _actor;
 	vtkSmartPointer<vtkImageMaskBits>  _mask;
 
-	vtkSmartPointer<vtkImageViewer2>   _viewer;
+	//vtkSmartPointer<vtkImageViewer2>   _viewer;
 	vtkStructuredPoints* _selection;
 
 };

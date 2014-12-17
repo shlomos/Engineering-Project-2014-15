@@ -46,6 +46,7 @@
 #include <sstream>
 #include "ImageGraphCut.h"
 #include "MarchingCubes.h"
+#include "LeapAbstractionLayer.h" 
 
 #include <boost/thread.hpp>
 
@@ -80,24 +81,27 @@ public:
 	virtual ~myVtkInteractorStyleImage();
 	vtkTypeMacro(myVtkInteractorStyleImage, vtkInteractorStyleImage);
 	vtkSmartPointer<vtkCallbackCommand> leapCallback;
-	float _x_position, _y_position, _z_position; // TODO: create getters and setters and move to protected.
+	//float _x_position, _y_position, _z_position; // TODO: create getters and setters and move to protected.
+	vtkSmartPointer<vtkIntArray> _selection_scalars;
 
 protected:
 	vtkSmartPointer<vtkImageViewer2> _ImageViewer;
+	LeapAbstractionLayer* _lal;
 	vtkTextMapper* _StatusMapper;
 	ImageGraphCut* _graph_cut;
 	MarchingCubes* _marching_cubes;
 	int _orientation;
-	int _MinSlice;
-	int _MaxSlice;
-	int _Slice;
+	//int _MinSlice;
+	//int _MaxSlice;
+	//int _Slice;
 	std::string _outputName;
 	int _drawSize;
 	vtkSmartPointer<vtkImageActor> _selection_actor;
 	vtkStructuredPoints* _CT_image;
 	bool _hfMode;
-	bool _isSliceLocked;
-	bool _isPainting;
+	//bool _isSliceLocked;
+	bool _canSegment;
+	//bool _isPainting;
 	virtual void SetInteractor(vtkRenderWindowInteractor* interactor);// method I overrode. 
 	static void ProcessLeapEvents(vtkObject* object,
 		unsigned long event,
@@ -109,9 +113,9 @@ public:
 	void SetImageViewer(vtkImageViewer2* imageViewer, std::string outputName, vtkSmartPointer<vtkImageActor> selection_actor, vtkStructuredPoints* CT_image);
 	void SetStatusMapper(vtkTextMapper* statusMapper);
 	void doSegment();
-	void setSlice(int slice);
-	void lockSlice(bool state);
-	void SetPainting(bool state);
+	//void setSlice(int slice);
+	//void lockSlice(bool state);
+	//void SetPainting(bool state);
 	int getMaxSlice();
 	double* redrawCrossHair();
 	void applyCameraFixes();

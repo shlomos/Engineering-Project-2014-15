@@ -3,6 +3,7 @@
 
 #include "Leap.h"
 #include "myVtkInteractorStyleImage.h"
+#include "LeapAbstractionLayer.h"
 #include <algorithm>
 
 using namespace Leap;
@@ -10,9 +11,8 @@ using namespace Leap;
 class SlicerLeapListener : public Listener {
 public:
 
-	myVtkInteractorStyleImage* _InteractorStyle;
 	float _lastZ;
-	void SetImageViewer(myVtkInteractorStyleImage* interactorStyle);
+	void SetInterface(LeapAbstractionLayer* lal);
 	void onInit(const Controller& controller);
 	void onConnect(const Controller& controller);
 	void onDisconnect(const Controller& controller);
@@ -20,6 +20,9 @@ public:
 	void onFrame(const Controller& controller);
 	void onFocusGained(const Controller& controller);
 	void onFocusLost(const Controller& controller);
+
+protected:
+	LeapAbstractionLayer* _lal;
 };
 
 #endif

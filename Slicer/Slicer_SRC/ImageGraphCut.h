@@ -79,7 +79,7 @@ public:
 	void SetImage(vtkStructuredPoints* const image, vtkStructuredPoints* CT_image);
 
 	/** Create and cut the graph (The main driver function). */
-	void PerformSegmentation();
+	vtkStructuredPoints* PerformSegmentation();
 
 	void ImageGraphCut::Clean();
 

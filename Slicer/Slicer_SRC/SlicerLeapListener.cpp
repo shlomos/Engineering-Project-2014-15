@@ -1,8 +1,7 @@
 #include "SlicerLeapListener.h"
 
-void SlicerLeapListener::SetImageViewer(myVtkInteractorStyleImage* interactorStyle) {
-	_InteractorStyle = interactorStyle;
-
+void SlicerLeapListener::SetInterface(LeapAbstractionLayer* lal){
+	_lal = lal;
 }
 
 
@@ -48,15 +47,15 @@ void SlicerLeapListener::onFrame(const Controller& controller) {
 				}
 			}
 			frontmost = fingers.fingerType(Finger::TYPE_INDEX)[0].tipPosition();
-			this->_InteractorStyle->SetPainting(paint);
-			this->_InteractorStyle->lockSlice(!move);
+			this->_lal->setPainting(paint);
+			this->_lal->setSliceLock(!move);
 		}else{
 			ToolList tools = frame.tools();
 			frontmost = tools.frontmost().tipPosition();
 			if(tools.count() > 1){
-				this->_InteractorStyle->SetPainting(true);
+				this->_lal->setPainting(true);
 			}else{
-				this->_InteractorStyle->SetPainting(false);
+				this->_lal->setPainting(false);
 			}
 		}
 		// Calculate the hand's average finger tip position
@@ -68,16 +67,16 @@ void SlicerLeapListener::onFrame(const Controller& controller) {
 		Vector *aPoint = new Vector(0.0f, 0.0f, -150.0f);
 		float realDis = (frontmost.z-aPoint->z);
 		//cout << "im sad!"<<endl;
-		int dis = std::max(0,std::min(_InteractorStyle->getMaxSlice(),(int)(realDis/150.0f*_InteractorStyle->getMaxSlice())));
+		int dis = std::max(0,std::min(_lal->getMaxSlice(),(int)(realDis/150.0f*_lal->getMaxSlice())));
 		//cout << "im very very sad!"<<endl;
 		//std::cout << "try set slice to " << dis<<  std::endl;
 		//Assume screen is 15 cm after leap
 		//std::cout << "finger is at " << frontmost.z
 		//	<< " pointer is " << dis << "cm from screen." << std::endl;
-		this->_InteractorStyle->setSlice(dis);
-		this->_InteractorStyle->_x_position = frontmost.x;
-		this->_InteractorStyle->_y_position = frontmost.y;
-		this->_InteractorStyle->_z_position = frontmost.z;
+		this->_lal->setSlice(dis);
+		this->_lal->setX(frontmost.x);
+		this->_lal->setY(frontmost.y);
+		this->_lal->setZ(frontmost.z);
 		//cout << "im desperate!"<<endl;
 	}
 

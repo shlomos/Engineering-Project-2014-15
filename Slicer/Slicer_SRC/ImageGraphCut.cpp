@@ -15,31 +15,6 @@ void ImageGraphCut::Clean(){
 	this->_map.clear();
 }
 
-void ImageGraphCut::CutGraph()
-{
-	cout << "CutGraph()..." << endl;
-
-	int flow = Graph->maxflow();
-	cout << "finished cutting the graph! \n" << endl;
-	cout << "start update of mapper..." << endl;
-	vtkIntArray* scalars = (vtkIntArray*)this->_selection->GetPointData()->GetScalars();
-
-	for (int i = 0; i < this->_selection->GetNumberOfPoints(); i++)
-	{
-		
-		if (Graph->what_segment(i) == GraphType::SOURCE) {
-			scalars->SetValue(i, NOT_ACTIVE);
-		}
-		else {
-			scalars->SetValue(i, FOREGROUND);
-		}
-	}
-
-	cout << "finished update the mapper. Modifying..." << endl;
-	scalars->Modified();
-	cout << "done." << endl;
-}
-
 void ImageGraphCut::CutGraphs() {
 	cout << "CutGraphs()..." << endl;
 	int flow;
@@ -62,7 +37,7 @@ void ImageGraphCut::CutGraphs() {
 					id_selection = ComputePointId(i,j,k);
 
 					if (this->_map[(*it).getTId()]->what_segment(counterID++) == GraphType::SOURCE) {
-						scalars->SetValue(id_selection, NOT_ACTIVE);
+						scalars->SetValue(id_selection, /*BACKGROUND*/  NOT_ACTIVE);
 					}
 					else {
 						scalars->SetValue(id_selection, FOREGROUND);
@@ -79,7 +54,7 @@ void ImageGraphCut::CutGraphs() {
 }
 
 //
-void ImageGraphCut::PerformSegmentation()
+vtkStructuredPoints* ImageGraphCut::PerformSegmentation()
 {
 	cout << "perform segmentation()" << endl;
 	vtkIdType current_point;
@@ -107,7 +82,7 @@ void ImageGraphCut::PerformSegmentation()
 	this->CreateGraphs();
 	this->CutGraphs();
 
-
+	return this->_selection;
 	cout << "Finished Segmentation!" << endl;
 }
 
@@ -139,8 +114,12 @@ void ImageGraphCut::CreateNEdges_tumor(Tumor tumor){
 	int counterID = 0;
 	int neighbors[3];
 	int weight;
+	float unfloored_weight = 0;
+	int total_weight = 0;
+	int counter = 0;
 	float pixelDifference;
 	double sigma = this->ComputeNoise(tumor);
+	int mult_constant = 1000;
 	vtkIdType current_point, neighbor_point;
 	
 	GraphType* g = this->_map[tumor.getTId()];
@@ -156,29 +135,41 @@ void ImageGraphCut::CreateNEdges_tumor(Tumor tumor){
 				if (neighbors[0] != -1){
 					neighbor_point = ComputePointId(i+1, j, k);
 					pixelDifference = ComputeDifference(current_point, neighbor_point);
-					weight =  std::floor(exp(-pow(pixelDifference, 2) / (2.0*sigma*sigma)));
+					weight = mult_constant*std::floor(exp(-pow(pixelDifference, 2) / (2.0*sigma*sigma)));
 					g->add_edge(counterID, neighbors[0], weight, weight);
+					total_weight += weight;
+					counter++;
+					unfloored_weight += exp(-pow(pixelDifference, 2) / (2.0*sigma*sigma));
 				}
 
 				//U
 				if (neighbors[1] != -1){
 					neighbor_point = ComputePointId(i,j+1,k);
 					pixelDifference = ComputeDifference(current_point, neighbor_point);
-					weight = std::floor(exp(-pow(pixelDifference, 2) / (2.0*sigma*sigma)));
+					weight = mult_constant*std::floor(exp(-pow(pixelDifference, 2) / (2.0*sigma*sigma)));
 					g->add_edge(counterID, neighbors[1], weight, weight);
+					total_weight += weight;
+					counter++;
+					unfloored_weight += exp(-pow(pixelDifference, 2) / (2.0*sigma*sigma));
 				}
 
 				//I
 				if (neighbors[2] != -1){
 					neighbor_point = ComputePointId(i, j, k+1);
 					pixelDifference = ComputeDifference(current_point, neighbor_point);
-					weight = std::floor(exp(-pow(pixelDifference, 2) / (2.0*sigma*sigma)));
+					weight = mult_constant*std::floor(exp(-pow(pixelDifference, 2) / (2.0*sigma*sigma)));
 					g->add_edge(counterID, neighbors[2], weight, weight);
+					total_weight += weight;
+					counter++;
+					unfloored_weight += exp(-pow(pixelDifference, 2) / (2.0*sigma*sigma));
 				}
 				counterID++;
 			}
 		}
 	}
+
+	cout << "CreateNEdges_tumor:: average Nedges weight is: " << float(total_weight) / float(counter) << endl;
+	cout << "CreateNEdges_tumor:: average Nedges weight BEFORE FLOORING is: " << float(unfloored_weight) / float(counter) << endl;
 
 	return;
 }
@@ -210,6 +201,11 @@ void ImageGraphCut::CreateTEdges_tumor(Tumor tumor) {
 	cout << "bb.min_y, bb.min_y: " << bb.min_y << ", " << bb.max_y << endl;
 	cout << "bb.min_z, bb.min_z: " << bb.min_z << ", " << bb.max_z << endl;
 
+	int counter_t = 0;
+	int counter_s = 0;
+	float average_s_weight = 0;
+	float average_t_weight = 0;
+
 	int counterID = 0;
 
 	for (int i = bb.min_x; i < bb.max_x; i++){
@@ -223,28 +219,36 @@ void ImageGraphCut::CreateTEdges_tumor(Tumor tumor) {
 
 				int me = scalars_CT->GetValue(pointId) <= MIN_POSSIBLE_VALUE ? scalars_CT->GetValue(pointId) : (-1)*(65535 - scalars_CT->GetValue(pointId));
 
-				//cout << "pointId: " << pointId << endl;
+				////cout << "pointId: " << pointId << endl;
 				if (selection_scalars->GetValue(pointId) == BACKGROUND)
 				{
 					g->add_tweights(counterID++, std::numeric_limits<int>::max(), (int)(SILENCING_FACTOR*(-std::abs(me - (LOWER_BOUND + UPPER_BOUND) / 2) + MIN_POSSIBLE_VALUE + UPPER_BOUND - LOWER_BOUND))/*std::numeric_limits<int>::min()*/);
-					//cout << "BACKGROUND: selection_scalars->GetValue(pointId) is:  " << selection_scalars->GetValue(pointId) << endl;
+					counter_t++;
+					average_t_weight += (int)(SILENCING_FACTOR*(-std::abs(me - (LOWER_BOUND + UPPER_BOUND) / 2) + MIN_POSSIBLE_VALUE + UPPER_BOUND - LOWER_BOUND));
 					continue;
 				}
 				if (selection_scalars->GetValue(pointId) == FOREGROUND)
 				{
 					g->add_tweights(counterID++, /*std::numeric_limits<int>::min()*/(int)(std::abs(me - (UPPER_BOUND + LOWER_BOUND) / 2) + MIN_POSSIBLE_VALUE), std::numeric_limits<int>::max());
-					//cout << "FOREGROUND:: selection_scalars->GetValue(pointId) is; " << pointId << endl;
+					counter_s++;
+					average_s_weight += (int)(std::abs(me - (UPPER_BOUND + LOWER_BOUND) / 2) + MIN_POSSIBLE_VALUE);
 					continue;
 				}
 				if (selection_scalars->GetValue(pointId) == NOT_ACTIVE){					
-					//todo: fix this equation!
 					g->add_tweights(counterID++, (int)(std::abs(me - (UPPER_BOUND + LOWER_BOUND) / 2) + MIN_POSSIBLE_VALUE), 
 						(int)(SILENCING_FACTOR*(-std::abs(me - (LOWER_BOUND+UPPER_BOUND) / 2 ) + MIN_POSSIBLE_VALUE + UPPER_BOUND - LOWER_BOUND)));
+
+					counter_s++;
+					average_s_weight += (int)(std::abs(me - (UPPER_BOUND + LOWER_BOUND) / 2) + MIN_POSSIBLE_VALUE);
+					counter_t++;
+					average_t_weight += (int)(SILENCING_FACTOR*(-std::abs(me - (LOWER_BOUND + UPPER_BOUND) / 2) + MIN_POSSIBLE_VALUE + UPPER_BOUND - LOWER_BOUND));
 					continue;
 				}
 			}
 		}
 	}
+	cout << "CreateTEdges_tumor:: average t_weight is: " << float(average_t_weight) / float(counter_t) << endl;
+	cout << "CreateTEdges_tumor:: average s_weight is: " << float(average_s_weight) / float(counter_s) << endl;
 	cout << "at the end of CreateTEdges_tumor" << endl;
 }
 

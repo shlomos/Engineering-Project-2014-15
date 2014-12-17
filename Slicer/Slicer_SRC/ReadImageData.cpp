@@ -266,11 +266,12 @@ int main(int argc, char* argv[])
 	// Have the sample listener receive events from the controller
 	cout << "passed all creations " << endl;
 	controller.addListener(listener);
-	listener.SetImageViewer(myInteractorStyle);
-	cout << "set viewer on listener" <<endl;
+	LeapAbstractionLayer* lal = LeapAbstractionLayer::getInstance();
+	listener.SetInterface(lal);
+	cout << "set viewer on listener" << endl;
 	viewer->Render();
 	viewer->GetRenderer()->ResetCamera();
-	cout << "Camera reset" <<endl;
+	cout << "Camera reset" << endl;
 	viewer->Render();
 	renderWindowInteractor->Start();
 	controller.removeListener(listener);

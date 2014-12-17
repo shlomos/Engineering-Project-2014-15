@@ -2,13 +2,16 @@
 
 
 MarchingCubes::MarchingCubes(vtkStructuredPoints* selection) {
-	cout << "in ctor start!" << endl;
+
 	this->_selection = selection;
 
 	_surface = vtkMarchingCubes::New();
+	_renderer = vtkRenderer::New();
+	_renderWindow = vtkRenderWindow::New();
 	_mapper = vtkPolyDataMapper::New();
 	_actor = vtkActor::New();
 	_mask = vtkImageMaskBits::New();
+	_interactor = vtkRenderWindowInteractor::New();
 
 	//filter segblock, only SEGMENTATION will be presented
 	_mask->AddInputData(_selection);
@@ -21,32 +24,28 @@ MarchingCubes::MarchingCubes(vtkStructuredPoints* selection) {
 	_surface->ComputeNormalsOn();
 	_surface->SetValue(0, ISO_VALUE);
 
-	//qvtk3Ddisplayer->SetRenderWindow(renderWindow);
-	vtkSmartPointer<vtkRenderer> renderer =
-		vtkSmartPointer<vtkRenderer>::New();
-	renderer->SetBackground(0.0, 0.0, 0.0);
+	_renderer->SetBackground(0, 0, 0);
 
-	vtkSmartPointer<vtkRenderWindow> renderWindow =
-		vtkSmartPointer<vtkRenderWindow>::New();
-	renderWindow->AddRenderer(renderer);
-	vtkSmartPointer<vtkRenderWindowInteractor> interactor =
-		vtkSmartPointer<vtkRenderWindowInteractor>::New();
-	interactor->SetRenderWindow(renderWindow);
+	vtkSmartPointer<myVtkInteractorStyleImage3D> myInteractorStyle =
+		vtkSmartPointer<myVtkInteractorStyleImage3D>::New();
+	myInteractorStyle->Initialize("Output.obj");
+	_renderWindow->SetWindowName("Mesh Viewer");
+	_renderWindow->AddRenderer(_renderer);
 
-	vtkSmartPointer<vtkPolyDataMapper> mapper =
-		vtkSmartPointer<vtkPolyDataMapper>::New();
-	mapper->SetInputConnection(_surface->GetOutputPort());
+	_interactor->SetInteractorStyle(myInteractorStyle);
+	_interactor->CreateRepeatingTimer(UPDATE_SLICE_TIMER);
 
-	vtkSmartPointer<vtkActor> actor =
-		vtkSmartPointer<vtkActor>::New();
-	actor->SetMapper(mapper);
+	_interactor->SetRenderWindow(_renderWindow);
+	_interactor->Initialize();
+	_renderWindow->SetInteractor(_interactor);
 
-	renderer->AddActor(actor);
+	_mapper->SetInputConnection(_surface->GetOutputPort());
 
-	renderWindow->Render();
-	interactor->Start();
+	_actor->SetMapper(_mapper);
 
-	cout << "After Rendering" << endl;
-	//renderWindowInteractor->Start();
-	cout << "Done function!" << endl;
+	_renderer->AddActor(_actor);
+
+	_renderWindow->Render();
+	_interactor->Start();
+
 }
