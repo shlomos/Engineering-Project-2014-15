@@ -43,6 +43,9 @@ void myVtkInteractorStyleImage3D::Initialize(std::string outputName){
 	_outputName = outputName;
 	_hfMode = false;
 	_rotLock = true;
+	//Start movement:
+	//this->InteractionProp = vtkProp3D::SafeDownCast(this->Interactor->GetRenderWindow()->GetRenderers()->GetFirstRenderer()->GetViewProps()->GetLastProp());
+	this->StartRotate();
 	cout << "3D Interactor iniitiated." << std::endl;
 }
 
@@ -65,35 +68,43 @@ void myVtkInteractorStyleImage3D::WriteToFile() {
 typedef void(myVtkInteractorStyleImage3D::*workerFunction)();
 
 void myVtkInteractorStyleImage3D::doSegment() {
-	//vtkSmartPointer<vtkImageEuclideanDistance> ed3d = vtkSmartPointer<vtkImageEuclideanDistance>::New();
-	////ed3d->SetInputData((vtkImageData*)((vtkImageMapToColors*)_selection_actor->GetMapper()->GetInputAlgorithm())->GetInput());
-	////ed3d->Update();
-	////_graph_cut->SetImage((vtkStructuredPoints*)ed3d->GetOutput(), _CT_image);
-	//vtkStructuredPoints* selection_structured_points = (vtkStructuredPoints*)((vtkImageMapToColors*)_selection_actor->GetMapper()->GetInputAlgorithm())->GetInput();
-	//_graph_cut->SetImage( selection_structured_points, _CT_image );
-	//_graph_cut->PerformSegmentation();
-	//vtkSmartPointer<vtkImageOpenClose3D> openClose =
-	//	vtkSmartPointer<vtkImageOpenClose3D>::New();
-	//openClose->SetInputData(selection_structured_points);
-	//openClose->SetOpenValue(NOT_ACTIVE);
-	//openClose->SetCloseValue(FOREGROUND);
-	//openClose->SetKernelSize(XY_OPENCLOSE, XY_OPENCLOSE, Z_OPENCLOSE);
-	//openClose->ReleaseDataFlagOff();
-	//openClose->Update();
-	//((vtkImageMapToColors*)_selection_actor->GetMapper()->GetInputAlgorithm())->SetInputData(openClose->GetOutput());
+	
 }
+
 void myVtkInteractorStyleImage3D::OnLeftButtonDown()
 {
 	std::cout << "Pressed left mouse button." << std::endl;
 	// Forward events
-	vtkInteractorStyleJoystickActor::OnLeftButtonDown();
+	int* clickPos = this->GetInteractor()->GetEventPosition();
+	vtkSmartPointer<vtkPropPicker>  picker =
+		vtkSmartPointer<vtkPropPicker>::New();
+	cout << picker << endl;
+	vtkRenderer* ren = this->Interactor->GetRenderWindow()->GetRenderers()->GetFirstRenderer();
+	cout << ren << endl;
+	picker->Pick(clickPos[0], clickPos[1], 0, ren);
+	double* pos = picker->GetPickPosition();
+	std::cout << "Pick position (world coordinates) is: "
+		<< pos[0] << " " << pos[1] << " " << pos[2] << std::endl;
+	cout << "All Done." << endl;
+	vtkPolyDataMapper* mapper = (vtkPolyDataMapper*)ren->GetActors()->GetLastActor()->GetMapper();
+	vtkPolyData* mesh = mapper->GetInput();
+	vtkPointData* pd = mesh->GetPointData();
+	vtkIdType id = mesh->FindPoint(pos);
+	cout << "The Point Is: " << id << endl;
+	vtkIntArray* scalars = (vtkIntArray*)pd->GetScalars();
+	scalars->SetValue(id, BACKGROUND);
+	scalars->Modified();
+	mesh->Modified();
+	pd->Modified();
+	mapper->Update();
+	//vtkInteractorStyleJoystickActor::OnLeftButtonDown();
 }
 
 void myVtkInteractorStyleImage3D::OnRightButtonDown()
 {
 	std::cout << "Pressed left mouse button." << std::endl;
 	// Forward events
-	vtkInteractorStyleJoystickActor::OnRightButtonDown();
+	vtkInteractorStyleJoystickCamera::OnRightButtonDown();
 }
 
 void myVtkInteractorStyleImage3D::OnRightButtonUp()
@@ -105,7 +116,7 @@ void myVtkInteractorStyleImage3D::OnLeftButtonUp()
 }
 
 void myVtkInteractorStyleImage3D::OnTimer(){
-	cout << "Got a leap event!" << endl;
+	//cout << "Got a leap event!" << endl;
 	// render
 	int * winSize = Interactor->GetRenderWindow()->GetSize();
 	if (this->Interactor->GetShiftKey()){
@@ -116,13 +127,13 @@ void myVtkInteractorStyleImage3D::OnTimer(){
 	}
 	cout << Interactor->GetEventPosition()[0] << ":" << Interactor->GetEventPosition()[1] << endl;
 	// Delegate
-	vtkInteractorStyleJoystickActor::OnTimer();
+	vtkInteractorStyleJoystickCamera::OnTimer();
 	
 }
 
 void myVtkInteractorStyleImage3D::OnKeyUp() {}
 void myVtkInteractorStyleImage3D::OnMouseMove(){
-	vtkInteractorStyleJoystickActor::OnMouseMove();
+	vtkInteractorStyleJoystickCamera::OnMouseMove();
 }
 void myVtkInteractorStyleImage3D::OnKeyDown() {
 	std::string key = this->GetInteractor()->GetKeySym();
@@ -155,8 +166,8 @@ void myVtkInteractorStyleImage3D::OnKeyDown() {
 			int x = this->Interactor->GetEventPosition()[0];
 			int y = this->Interactor->GetEventPosition()[1];
 			this->FindPokedRenderer(x, y);
-			this->FindPickedActor(x, y);
-			if (this->CurrentRenderer == NULL || this->InteractionProp == NULL)
+			//this->FindPickedActor(x, y);
+			if (this->CurrentRenderer == NULL)// || this->InteractionProp == NULL)
 			{
 				cout << "Renderer is null" << endl;
 				return;
@@ -180,13 +191,7 @@ void myVtkInteractorStyleImage3D::OnKeyDown() {
 		this->LoadFromFile();
 	}
 	else if (key.compare("space") == 0) {
-
-		//workerFunction f = &myVtkInteractorStyleImage::doSegment;
-		//boost::thread workerThread(f, this);
-
-		//// update mapper to show segmentation
-		//this->_selection_actor->GetMapper()->Update();
-		//this->_ImageViewer->Render();
+		this->OnLeftButtonDown();
 	}
 	else if (key.compare("m") == 0) {
 		cout << "m pressed event!" << endl;

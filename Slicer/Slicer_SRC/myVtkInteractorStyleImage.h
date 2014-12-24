@@ -91,17 +91,13 @@ protected:
 	ImageGraphCut* _graph_cut;
 	MarchingCubes* _marching_cubes;
 	int _orientation;
-	//int _MinSlice;
-	//int _MaxSlice;
-	//int _Slice;
 	std::string _outputName;
 	int _drawSize;
 	vtkSmartPointer<vtkImageActor> _selection_actor;
 	vtkStructuredPoints* _CT_image;
 	bool _hfMode;
 	//bool _isSliceLocked;
-	bool _canSegment;
-	//bool _isPainting;
+	boost::mutex _canSegment_mutex;
 	virtual void SetInteractor(vtkRenderWindowInteractor* interactor);// method I overrode. 
 	static void ProcessLeapEvents(vtkObject* object,
 		unsigned long event,

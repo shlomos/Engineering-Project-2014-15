@@ -28,7 +28,6 @@ MarchingCubes::MarchingCubes(vtkStructuredPoints* selection) {
 
 	vtkSmartPointer<myVtkInteractorStyleImage3D> myInteractorStyle =
 		vtkSmartPointer<myVtkInteractorStyleImage3D>::New();
-	myInteractorStyle->Initialize("Output.obj");
 	_renderWindow->SetWindowName("Mesh Viewer");
 	_renderWindow->AddRenderer(_renderer);
 
@@ -46,6 +45,7 @@ MarchingCubes::MarchingCubes(vtkStructuredPoints* selection) {
 	_renderer->AddActor(_actor);
 
 	_renderWindow->Render();
+	myInteractorStyle->Initialize("Output.obj");
 	_interactor->Start();
 
 }

@@ -51,7 +51,6 @@ void myVtkInteractorStyleImage::SetImageViewer(vtkImageViewer2* imageViewer, std
 	_outputName = outputName;
 	_hfMode = false;
 	//_isSliceLocked = false;
-	_canSegment = true;
 	//_isPainting = false;
 	_selection_actor = selection_actor;
 	_CT_image = CT_image;
@@ -127,6 +126,9 @@ void myVtkInteractorStyleImage::LoadFromFile(){
 	sLoader->Update();
 	vtkImageMapToColors* mapper = (vtkImageMapToColors*)_selection_actor->GetMapper()->GetInputAlgorithm();
 	mapper->SetInputData(sLoader->GetOutput());
+
+	this->_selection_scalars = vtkIntArray::SafeDownCast((vtkSmartPointer<vtkDataArray>)(sLoader->GetOutput()->GetPointData()->GetScalars()));
+
 	cout << "Updating view, just a little longer..." << endl;
 	mapper->Modified();
 	mapper->Update();
@@ -197,14 +199,7 @@ double* myVtkInteractorStyleImage::redrawCrossHair() {
 	_selection_actor->SetDisplayExtent(displayExtent);
 	return temp;
 }
-//void myVtkInteractorStyleImage::SetPainting(bool state) {
-//	//cout << "Pinting is: " << state << endl;
-//	this->_isPainting = state;
-//}
-//void myVtkInteractorStyleImage::lockSlice(bool state){
-//	//cout << "slice lock state is " << state << endl;
-//	this->_isSliceLocked = state;
-//}
+
 void myVtkInteractorStyleImage::WriteToFile() {
 	cout << "Writing segmentation to file..." << endl;
 	vtkSmartPointer<vtkStructuredPointsWriter> writer =
@@ -223,23 +218,11 @@ void myVtkInteractorStyleImage::translateToStructuredPoints(vtkUnstructuredGrid*
 	vtkPointData* cPointData = component->GetPointData();
 	vtkIntArray* c_selection_scalars = (vtkIntArray*)cPointData->GetScalars();
 
-	double x[3];
-	int* ijk;
-	double pCoord[3];
-	vtkIdType id;
 	for (int i = 0; i < compoPoints->GetNumberOfPoints(); i++){
 		if (c_selection_scalars->GetValue(i) != c_selection_scalars->GetValue(max(0, i - 1))){
 			cout << c_selection_scalars->GetValue(i) << endl;
 		}
 		selection_scalars->SetValue(i, c_selection_scalars->GetValue(i));
-		/*compoPoints->GetPoint(i, x);
-		cout << component->GetNumberOfPoints() << " vs in all " << temp->GetNumberOfPoints() << endl;
-		if (temp->ComputeStructuredCoordinates(x, ijk, pCoord) != 0){
-		id = temp->ComputePointId(ijk);
-		if (id != -1){
-		selection_scalars->SetValue(id, FOREGROUND);
-		}
-		}*/
 	}
 	selection_scalars->Modified();
 }
@@ -247,7 +230,8 @@ void myVtkInteractorStyleImage::translateToStructuredPoints(vtkUnstructuredGrid*
 typedef void(myVtkInteractorStyleImage::*workerFunction)();
 
 void myVtkInteractorStyleImage::doSegment() {
-	
+	boost::mutex::scoped_lock scoped_lock(_canSegment_mutex);
+
 	vtkSmartPointer<vtkStructuredPoints> selection_structured_points = (vtkStructuredPoints*)((vtkImageMapToColors*)_selection_actor->GetMapper()->GetInputAlgorithm())->GetInput();
 	
 	vtkPointData* cellData1 = selection_structured_points->GetPointData();
@@ -327,21 +311,20 @@ void myVtkInteractorStyleImage::OnKeyDown() {
 	else if (key.compare("l") == 0) {
 		this->LoadFromFile();
 	}
-	else if (key.compare("space") == 0 && _canSegment) {
-		_canSegment = false;
-		cout << "right after space" << endl;
+	else if (key.compare("space") == 0) {
+		
+		cout << "change _canSegment To FALSE" << endl;
 		workerFunction f = &myVtkInteractorStyleImage::doSegment;
 		boost::thread workerThread(f, this);
 
 		// update mapper to show segmentation
 		this->_selection_actor->GetMapper()->Update();
 		this->_ImageViewer->Render();
-		_canSegment = true;
+		cout << "change _canSegment To TRUE" << endl;
+		
 	}
 	else if (key.compare("m") == 0) {
-		cout << "marching cubes event!" << endl;
 		this->marchingCubes();
-		cout << "End of Marching Cubes event!" << endl;
 	}
 	// forward event
 }
@@ -487,7 +470,7 @@ void myVtkInteractorStyleImage::ProcessLeapEvents(vtkObject* object, unsigned lo
 
 		vtkPointData* cellData = selection_structured_points->GetPointData();
 		vtkSmartPointer<vtkIntArray> selection_scalars = vtkSmartPointer<vtkIntArray>::New();
-		selection_scalars = intStyle->_selection_scalars; //(vtkIntArray*)cellData->GetScalars();
+		selection_scalars = intStyle->_selection_scalars;
 		selection_scalars->SetNumberOfValues(selection_structured_points->GetNumberOfPoints());
 
 		double x[3];

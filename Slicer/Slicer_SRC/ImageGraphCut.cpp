@@ -119,6 +119,7 @@ void ImageGraphCut::CreateNEdges_tumor(Tumor tumor){
 	int counter = 0;
 	float pixelDifference;
 	double sigma = this->ComputeNoise(tumor);
+	cout << "+++++++++the noise sigma is: " << sigma << endl;
 	int mult_constant = 1000;
 	vtkIdType current_point, neighbor_point;
 	
@@ -200,6 +201,11 @@ void ImageGraphCut::CreateTEdges_tumor(Tumor tumor) {
 	cout << "bb.min_x, bb.min_x: " << bb.min_x << ", " << bb.max_x << endl;
 	cout << "bb.min_y, bb.min_y: " << bb.min_y << ", " << bb.max_y << endl;
 	cout << "bb.min_z, bb.min_z: " << bb.min_z << ", " << bb.max_z << endl;
+	
+	int* bound_values;
+	ComputeThresholds(tumor, bound_values);
+	int tumor_lower_gray_value = bound_values[0];
+	int tumor_upper_gray_value = bound_values[1];
 
 	int counter_t = 0;
 	int counter_s = 0;
@@ -208,10 +214,13 @@ void ImageGraphCut::CreateTEdges_tumor(Tumor tumor) {
 
 	int counterID = 0;
 
+	cout << "** tumor_lower_gray_value: " << tumor_lower_gray_value << endl;
+	cout << "** tumor_upper_gray_value: " << tumor_upper_gray_value << endl;
+
 	for (int i = bb.min_x; i < bb.max_x; i++){
 		for (int j = bb.min_y; j < bb.max_y; j++) {
 			for (int k = bb.min_z; k < bb.max_z; k++){
-				//cout << "***tumor.getTId(): " << tumor.getTId() << endl;
+				
 				
 				GraphType* g = this->_map[tumor.getTId()];
 				g->add_node();
@@ -222,26 +231,26 @@ void ImageGraphCut::CreateTEdges_tumor(Tumor tumor) {
 				////cout << "pointId: " << pointId << endl;
 				if (selection_scalars->GetValue(pointId) == BACKGROUND)
 				{
-					g->add_tweights(counterID++, std::numeric_limits<int>::max(), (int)(SILENCING_FACTOR*(-std::abs(me - (LOWER_BOUND + UPPER_BOUND) / 2) + MIN_POSSIBLE_VALUE + UPPER_BOUND - LOWER_BOUND))/*std::numeric_limits<int>::min()*/);
+					g->add_tweights(counterID++, std::numeric_limits<int>::max(), (int)(SILENCING_FACTOR*(-std::abs(me - (tumor_lower_gray_value + tumor_upper_gray_value) / 2) + MIN_POSSIBLE_VALUE + tumor_upper_gray_value - tumor_lower_gray_value))/*std::numeric_limits<int>::min()*/);
 					counter_t++;
-					average_t_weight += (int)(SILENCING_FACTOR*(-std::abs(me - (LOWER_BOUND + UPPER_BOUND) / 2) + MIN_POSSIBLE_VALUE + UPPER_BOUND - LOWER_BOUND));
+					average_t_weight += (int)(SILENCING_FACTOR*(-std::abs(me - (tumor_lower_gray_value + tumor_upper_gray_value) / 2) + MIN_POSSIBLE_VALUE + tumor_upper_gray_value - tumor_lower_gray_value));
 					continue;
 				}
 				if (selection_scalars->GetValue(pointId) == FOREGROUND)
 				{
-					g->add_tweights(counterID++, /*std::numeric_limits<int>::min()*/(int)(std::abs(me - (UPPER_BOUND + LOWER_BOUND) / 2) + MIN_POSSIBLE_VALUE), std::numeric_limits<int>::max());
+					g->add_tweights(counterID++, /*std::numeric_limits<int>::min()*/(int)(std::abs(me - (tumor_upper_gray_value + tumor_lower_gray_value) / 2) + MIN_POSSIBLE_VALUE), std::numeric_limits<int>::max());
 					counter_s++;
-					average_s_weight += (int)(std::abs(me - (UPPER_BOUND + LOWER_BOUND) / 2) + MIN_POSSIBLE_VALUE);
+					average_s_weight += (int)(std::abs(me - (tumor_upper_gray_value + tumor_lower_gray_value) / 2) + MIN_POSSIBLE_VALUE);
 					continue;
 				}
 				if (selection_scalars->GetValue(pointId) == NOT_ACTIVE){					
-					g->add_tweights(counterID++, (int)(std::abs(me - (UPPER_BOUND + LOWER_BOUND) / 2) + MIN_POSSIBLE_VALUE), 
-						(int)(SILENCING_FACTOR*(-std::abs(me - (LOWER_BOUND+UPPER_BOUND) / 2 ) + MIN_POSSIBLE_VALUE + UPPER_BOUND - LOWER_BOUND)));
+					g->add_tweights(counterID++, (int)(std::abs(me - (tumor_upper_gray_value + tumor_lower_gray_value) / 2) + MIN_POSSIBLE_VALUE),
+						(int)(SILENCING_FACTOR*(-std::abs(me - (tumor_lower_gray_value + tumor_upper_gray_value) / 2) + MIN_POSSIBLE_VALUE + tumor_upper_gray_value - tumor_lower_gray_value)));
 
 					counter_s++;
-					average_s_weight += (int)(std::abs(me - (UPPER_BOUND + LOWER_BOUND) / 2) + MIN_POSSIBLE_VALUE);
+					average_s_weight += (int)(std::abs(me - (tumor_upper_gray_value + tumor_lower_gray_value) / 2) + MIN_POSSIBLE_VALUE);
 					counter_t++;
-					average_t_weight += (int)(SILENCING_FACTOR*(-std::abs(me - (LOWER_BOUND + UPPER_BOUND) / 2) + MIN_POSSIBLE_VALUE + UPPER_BOUND - LOWER_BOUND));
+					average_t_weight += (int)(SILENCING_FACTOR*(-std::abs(me - (tumor_lower_gray_value + tumor_upper_gray_value) / 2) + MIN_POSSIBLE_VALUE + tumor_upper_gray_value - tumor_lower_gray_value));
 					continue;
 				}
 			}
@@ -368,4 +377,34 @@ bool ImageGraphCut::AddPointToTumor(Tumor::Point3D point){
 	new_tumor.addPoint(point, limits);
 	_tumors.push_back(new_tumor);
 	return true;
+}
+
+// This function computes the garpy thresholds for segmenting the tumor
+void ImageGraphCut::ComputeThresholds(Tumor _tumor, int* arr){
+	
+	float sum = 0.0;
+	int counter = 1;
+
+	vtkPointData* pointsDataCT = this->_CT_image->GetPointData();
+	vtkIntArray* scalars_CT = (vtkIntArray*)pointsDataCT->GetScalars();
+	vtkIntArray* scalars_selection = (vtkIntArray*)this->_selection->GetPointData()->GetScalars();
+
+	vector<Tumor::Point3D> tumor_points = _tumor.getPoints();
+	for (int i = 0; i < tumor_points.size(); i++){
+		
+		vtkIdType pointId = ComputePointId(tumor_points.at(i).x, tumor_points.at(i).y, tumor_points.at(i).z);
+		
+		if (scalars_selection->GetValue(pointId) == FOREGROUND && scalars_CT->GetValue(pointId) < 80) {
+			sum += scalars_CT->GetValue(pointId);
+			counter++;
+		}
+	}
+
+	float average_gray_marked = sum / counter;
+
+	arr[0] = floor(0.01*average_gray_marked);
+	arr[1] = round(2.0*average_gray_marked); //todo: should it be we relation to the compued noise per tumor?
+	
+	cout << "** average_gray_marked: " << average_gray_marked << endl;
+
 }

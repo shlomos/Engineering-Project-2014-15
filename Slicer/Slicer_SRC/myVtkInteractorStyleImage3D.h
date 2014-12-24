@@ -12,7 +12,7 @@
 #include <vtkCallbackCommand.h>
 #include <vtkObjectFactory.h>
 #include <vtkTextMapper.h>
-#include <vtkInteractorStyleJoystickActor.h>
+#include <vtkInteractorStyleJoystickCamera.h>
 #include <vtkEventForwarderCommand.h>
 #include <vtkDataSetMapper.h>
 #include <vtkImageMapToColors.h>
@@ -72,12 +72,12 @@ public:
 
 
 // Define own interaction style
-class myVtkInteractorStyleImage3D : public vtkInteractorStyleJoystickActor
+class myVtkInteractorStyleImage3D : public vtkInteractorStyleJoystickCamera
 {
 public:
 	static myVtkInteractorStyleImage3D* New();
 	virtual ~myVtkInteractorStyleImage3D();
-	vtkTypeMacro(myVtkInteractorStyleImage3D, vtkInteractorStyleJoystickActor);
+	vtkTypeMacro(myVtkInteractorStyleImage3D, vtkInteractorStyleJoystickCamera);
 
 protected:
 	vtkTextMapper* _StatusMapper;

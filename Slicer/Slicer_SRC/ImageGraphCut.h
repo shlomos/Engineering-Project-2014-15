@@ -95,6 +95,9 @@ public:
 	void SetNumberOfHistogramBins(const int);
 
 protected:
+	
+	/** Create the histograms from the users selections */
+	void ComputeThresholds(Tumor _tumor, int* arr);
 
 	/** A graph object for Kolmogorov*/
 	typedef Graph<int, int, int> GraphType;
@@ -118,8 +121,7 @@ protected:
 	/** The number of bins per dimension of the foreground and background histograms */
 	int NumberOfHistogramBins = 10;
 
-	/** Create the histograms from the users selections */
-	void CreateSamples();
+	//------------------------------
 
 	/** Estimate the "camera noise" */
 	double ComputeNoise(Tumor tumor);
@@ -127,8 +129,6 @@ protected:
 	/** Compute the distance between two neighbors pixels*/
 	double ComputeDifference(vtkIdType currernt_point, vtkIdType neighbor);
 
-
-	//------------------------------
 	/** Create the edges between pixels and the terminals (source and sink) for the tumors*/
 	void CreateTEdges_tumor(Tumor tumor);
 
