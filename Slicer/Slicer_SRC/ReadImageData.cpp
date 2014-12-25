@@ -264,6 +264,7 @@ int main(int argc, char* argv[])
 	selectionA->SetDisplayExtent(displayExtent);
 	viewer->GetRenderWindow()->SetSize(1280, 720);
 	viewer->GetRenderWindow()->SetWindowName("Slicer");
+
 	// Have the sample listener receive events from the controller
 	cout << "passed all creations " << endl;
 	controller.addListener(listener);

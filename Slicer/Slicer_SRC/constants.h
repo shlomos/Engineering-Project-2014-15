@@ -3,7 +3,7 @@
 #define _CONSTANTS_
 
 #define UPDATE_SLICE_TIMER 5
-#define SCALE_FACTOR 1.2
+#define SCALE_FACTOR 1.8
 #define NUM_OF_LAYERS 1
 //#define CROSS_LAYER     (NUM_OF_LAYERS>1)?NUM_OF_LAYERS-1:-1
 #define SELECTION_LAYER std::max(0,NUM_OF_LAYERS-2)
@@ -34,6 +34,9 @@
 
 // 
 #define ISO_VALUE 0.1
+
+#define LEAP_MAX_Y 500
+#define LEAP_MIN_X -200
 
 enum
 {

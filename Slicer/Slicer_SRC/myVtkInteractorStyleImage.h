@@ -117,6 +117,7 @@ public:
 	void applyCameraFixes();
 
 protected:
+	
 	void MoveSliceForward();
 	void MoveSliceBackward();
 	void ToggleOrientation();
