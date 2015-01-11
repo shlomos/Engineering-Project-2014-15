@@ -86,6 +86,7 @@ protected:
 	int _drawSize;
 	bool _rotLock;
 	bool _hfMode;
+	vtkIdType _currSource;
 
 public:
 	myVtkInteractorStyleImage3D();

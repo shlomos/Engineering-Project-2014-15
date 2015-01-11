@@ -154,12 +154,12 @@ double* myVtkInteractorStyleImage::redrawCrossHair() {
 	vtkSmartPointer<vtkPoints> new_pts =
 		vtkSmartPointer<vtkPoints>::New();
 	double* size = ((vtkStructuredPoints*)(((vtkImageMapToColors*)_selection_actor->GetMapper()->GetInputAlgorithm()))->GetInput())->GetBounds();
-	std::cout << "bounds: " << " [0]: " << size[0]
-		<< " [1]: " << size[1]
-		<< " [2]: " << size[2]
-		<< " [3]: " << size[3]
-		<< " [4]: " << size[4]
-		<< " [5]: " << size[5] << std::endl;
+	//std::cout << "bounds: " << " [0]: " << size[0]
+	//	<< " [1]: " << size[1]
+	//	<< " [2]: " << size[2]
+	//	<< " [3]: " << size[3]
+	//	<< " [4]: " << size[4]
+	//	<< " [5]: " << size[5] << std::endl;
 
 	double cross_x = 0.0;
 	double cross_y = 0.0;
@@ -168,11 +168,9 @@ double* myVtkInteractorStyleImage::redrawCrossHair() {
 	switch (_ImageViewer->GetSliceOrientation()) {
 		//TODO: need to fix the "+number" factor in every set of cross_y value!!
 	case SLICE_ORIENTATION_YZ:
-		//cross_y = std::max(size[2], std::min(0.0, size[3]));
-		cout << "_lal->getX() : " << _lal->getX() << endl;
 		cross_y = std::min(size[3], std::max(size[2] + SCALE_FACTOR*((_lal->getX() - LEAP_MIN_X) / LEAP_MAX_Y)*(size[3] - size[2]) - 20, size[2]));
 		cross_z = std::min(size[5], std::max(size[4] + SCALE_FACTOR*(_lal->getY() / LEAP_MAX_Y)*(size[5]-size[4]) - 20, size[4]));
-		cout << "cross_z: "<< cross_z << endl;
+		
 		new_pts->InsertNextPoint(size[1], cross_y, size[4]); // vertical line
 		new_pts->InsertNextPoint(size[1], cross_y, size[5]); // vertical line
 		new_pts->InsertNextPoint(size[1], size[2], cross_z); // horizontal line
@@ -182,12 +180,8 @@ double* myVtkInteractorStyleImage::redrawCrossHair() {
 		break;
 	case SLICE_ORIENTATION_XZ:
 		
-		//TODO: keep fixing from here! other cases were fixed.
-
-		cout << "pos: " << size[0] + SCALE_FACTOR*((_lal->getX() - LEAP_MIN_X) / LEAP_MAX_Y)*(abs(size[1]) - abs(size[0])) - 20 << endl;
 		cross_z = std::min(size[5], std::max(size[4] + SCALE_FACTOR*(_lal->getY() / LEAP_MAX_Y)*(abs(size[5] - size[4])) - 20, size[4]));
-		cross_x = std::min(size[1], std::max(size[0] + SCALE_FACTOR*((_lal->getX() - LEAP_MIN_X) / LEAP_MAX_Y)*(abs(size[1]) - abs(size[0])) - 20, size[0]));
-
+		cross_x = std::min(size[1], std::max(size[0] - SCALE_FACTOR*((_lal->getX() - LEAP_MIN_X) / LEAP_MAX_Y)*(abs(size[1]) - abs(size[0])) - 20, size[0]));
 
 		new_pts->InsertNextPoint(size[0], size[2], cross_z); // vertical line
 		new_pts->InsertNextPoint(size[1], size[2], cross_z); // vertical line
@@ -199,7 +193,7 @@ double* myVtkInteractorStyleImage::redrawCrossHair() {
 	case SLICE_ORIENTATION_XY:
 		cross_x = std::max(size[0], std::min(SCALE_FACTOR*_lal->getX(), size[1]));
 		cross_y = std::min(size[3], std::max(size[2] + SCALE_FACTOR*((_lal->getY()/ LEAP_MAX_Y)*(size[3] - size[2])) - 20, size[2]));
-		cout << "cross_y is: " << cross_y << endl;
+		
 		new_pts->InsertNextPoint(size[0], cross_y, size[5]);
 		new_pts->InsertNextPoint(size[1], cross_y, size[5]);
 		new_pts->InsertNextPoint(cross_x, size[2], size[5]);

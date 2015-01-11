@@ -16,7 +16,7 @@
 #include <vtkRenderWindowInteractor.h>
 #include <vtkRenderWindow.h>
 #include <vtkRenderer.h>
-
+#include <vtkLookupTable.h>
 #include <vtkStructuredPoints.h>
 #include "constants.h"
 #include <vtkImageViewer2.h>

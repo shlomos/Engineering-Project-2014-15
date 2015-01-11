@@ -26,6 +26,10 @@
 #include <vtkPropPicker.h>
 #include <vtkImageEuclideanDistance.h>
 #include <algorithm>
+#include <vtkAppendPolyData.h>
+#include <vtkCleanPolyData.h>
+#include <vtkDijkstraGraphGeodesicPath.h>
+#include <vtkPolyDataWriter.h>
 #include <vtkCamera.h>
 #include <sstream>
 
@@ -43,8 +47,8 @@ void myVtkInteractorStyleImage3D::Initialize(std::string outputName){
 	_outputName = outputName;
 	_hfMode = false;
 	_rotLock = true;
+	_currSource = -1;
 	//Start movement:
-	//this->InteractionProp = vtkProp3D::SafeDownCast(this->Interactor->GetRenderWindow()->GetRenderers()->GetFirstRenderer()->GetViewProps()->GetLastProp());
 	this->StartRotate();
 	cout << "3D Interactor iniitiated." << std::endl;
 }
@@ -53,51 +57,41 @@ void myVtkInteractorStyleImage3D::LoadFromFile(){
 }
 
 void myVtkInteractorStyleImage3D::ResetAll(){
+	vtkRenderer* ren = this->Interactor->GetRenderWindow()->GetRenderers()->GetFirstRenderer();
+	vtkPolyDataMapper* mapper = (vtkPolyDataMapper*)ren->GetActors()->GetLastActor()->GetMapper();
+	vtkPolyData* mesh = mapper->GetInput();
+	vtkPointData* pd = mesh->GetPointData();
+	vtkIntArray* scalars = (vtkIntArray*)pd->GetScalars();
+	for (int i = 0; i < mesh->GetNumberOfPoints();i++){
+		scalars->SetValue(i, NOT_ACTIVE);
+	}
+	scalars->Modified();
+	mesh->Modified();
+	pd->Modified();
+	mapper->Update();
 }
 
 void myVtkInteractorStyleImage3D::WriteToFile() {
 	cout << "Writing segmentation to file..." << endl;
-	/*vtkSmartPointer<vtkStructuredPointsWriter> writer =
-		vtkSmartPointer<vtkStructuredPointsWriter>::New();
-		writer->SetInputData((vtkStructuredPoints*)((vtkImageMapToColors*)_selection_actor->GetMapper()->GetInputAlgorithm())->GetInput());
-		writer->SetFileName(_outputName.c_str());
-		writer->Write();
-		cout << "Done." << endl;*/
+	vtkRenderer* ren = this->Interactor->GetRenderWindow()->GetRenderers()->GetFirstRenderer();
+	vtkPolyDataMapper* mapper = (vtkPolyDataMapper*)ren->GetActors()->GetLastActor()->GetMapper();
+	vtkPolyData* mesh = mapper->GetInput();
+	vtkSmartPointer<vtkPolyDataWriter> writer =
+		vtkSmartPointer<vtkPolyDataWriter>::New();
+	writer->SetInputData(mesh);
+	writer->SetFileName(_outputName.c_str());
+	writer->Write();
+	cout << "Done." << endl;
 }
 
 typedef void(myVtkInteractorStyleImage3D::*workerFunction)();
 
-void myVtkInteractorStyleImage3D::doSegment() {
-	
+void myVtkInteractorStyleImage3D::doSegment() {	
 }
 
 void myVtkInteractorStyleImage3D::OnLeftButtonDown()
 {
 	std::cout << "Pressed left mouse button." << std::endl;
-	// Forward events
-	int* clickPos = this->GetInteractor()->GetEventPosition();
-	vtkSmartPointer<vtkPropPicker>  picker =
-		vtkSmartPointer<vtkPropPicker>::New();
-	cout << picker << endl;
-	vtkRenderer* ren = this->Interactor->GetRenderWindow()->GetRenderers()->GetFirstRenderer();
-	cout << ren << endl;
-	picker->Pick(clickPos[0], clickPos[1], 0, ren);
-	double* pos = picker->GetPickPosition();
-	std::cout << "Pick position (world coordinates) is: "
-		<< pos[0] << " " << pos[1] << " " << pos[2] << std::endl;
-	cout << "All Done." << endl;
-	vtkPolyDataMapper* mapper = (vtkPolyDataMapper*)ren->GetActors()->GetLastActor()->GetMapper();
-	vtkPolyData* mesh = mapper->GetInput();
-	vtkPointData* pd = mesh->GetPointData();
-	vtkIdType id = mesh->FindPoint(pos);
-	cout << "The Point Is: " << id << endl;
-	vtkIntArray* scalars = (vtkIntArray*)pd->GetScalars();
-	scalars->SetValue(id, BACKGROUND);
-	scalars->Modified();
-	mesh->Modified();
-	pd->Modified();
-	mapper->Update();
-	//vtkInteractorStyleJoystickActor::OnLeftButtonDown();
 }
 
 void myVtkInteractorStyleImage3D::OnRightButtonDown()
@@ -120,12 +114,12 @@ void myVtkInteractorStyleImage3D::OnTimer(){
 	// render
 	int * winSize = Interactor->GetRenderWindow()->GetSize();
 	if (this->Interactor->GetShiftKey()){
-		Interactor->SetEventPosition(_lal->getX() + winSize[0] / 2, winSize[1] / 2 - _lal->getY());
+		Interactor->SetEventPosition(-2*_lal->getX() + winSize[0] / 2, winSize[1] / 2 + 1.5*_lal->getZ());
 	}
 	else{
 		Interactor->SetEventPosition(winSize[0] / 2, winSize[1] / 2);
 	}
-	cout << Interactor->GetEventPosition()[0] << ":" << Interactor->GetEventPosition()[1] << endl;
+	//cout << Interactor->GetEventPosition()[0] << ":" << Interactor->GetEventPosition()[1] << endl;
 	// Delegate
 	vtkInteractorStyleJoystickCamera::OnTimer();
 	
@@ -166,8 +160,7 @@ void myVtkInteractorStyleImage3D::OnKeyDown() {
 			int x = this->Interactor->GetEventPosition()[0];
 			int y = this->Interactor->GetEventPosition()[1];
 			this->FindPokedRenderer(x, y);
-			//this->FindPickedActor(x, y);
-			if (this->CurrentRenderer == NULL)// || this->InteractionProp == NULL)
+			if (this->CurrentRenderer == NULL)
 			{
 				cout << "Renderer is null" << endl;
 				return;
@@ -191,7 +184,49 @@ void myVtkInteractorStyleImage3D::OnKeyDown() {
 		this->LoadFromFile();
 	}
 	else if (key.compare("space") == 0) {
-		this->OnLeftButtonDown();
+		int* clickPos = this->GetInteractor()->GetEventPosition();
+		vtkSmartPointer<vtkPropPicker>  picker =
+			vtkSmartPointer<vtkPropPicker>::New();
+		vtkRenderer* ren = this->Interactor->GetRenderWindow()->GetRenderers()->GetFirstRenderer();
+		//cout << picker->GetTolerance() << endl;
+		//picker->SetTolerance(0.5);
+		picker->Pick(clickPos[0], clickPos[1], 0, ren);
+		double* pos = picker->GetPickPosition();
+		vtkPolyDataMapper* mapper = (vtkPolyDataMapper*)ren->GetActors()->GetLastActor()->GetMapper();
+		vtkPolyData* mesh = mapper->GetInput();
+		vtkPointData* pd = mesh->GetPointData();
+		vtkIntArray* scalars = (vtkIntArray*)pd->GetScalars();
+		vtkIdType id = mesh->FindPoint(pos);
+		cout << "The Point Is: " << id << endl;
+		if (id > -1 && _currSource == -1){
+			_currSource = id;
+			cout << "First set." << endl;
+		}
+		else if (id > -1 && _currSource != -1){
+			//Make a line connection.
+			cout << "First set." << endl;
+			vtkSmartPointer<vtkDijkstraGraphGeodesicPath> dijkstra =
+				vtkSmartPointer<vtkDijkstraGraphGeodesicPath>::New();
+			dijkstra->SetInputData(mesh);
+			dijkstra->SetStartVertex(_currSource);
+			dijkstra->SetEndVertex(id);
+			dijkstra->Update();
+			cout << " Got a dijkstra!" << endl;
+			vtkPolyData* path = dijkstra->GetOutput();
+			cout << "Num. of points: " <<path->GetNumberOfPoints() << endl;
+			scalars->SetValue(15000, 2);
+			cout << scalars->GetValue(15000) << endl;
+			for (int i = 0; i < path->GetNumberOfPoints(); i++){
+				cout << scalars->GetValue(mesh->FindPoint(path->GetPoint(i))) << endl;
+				scalars->SetValue(mesh->FindPoint(path->GetPoint(i)),FOREGROUND);
+			}
+			_currSource = -1;
+		}
+		scalars->SetValue(id, FOREGROUND);
+		scalars->Modified();
+		mesh->Modified();
+		pd->Modified();
+		mapper->Update();
 	}
 	else if (key.compare("m") == 0) {
 		cout << "m pressed event!" << endl;

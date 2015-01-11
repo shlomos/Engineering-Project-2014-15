@@ -77,6 +77,7 @@ void SlicerLeapListener::onFrame(const Controller& controller) {
 		this->_lal->setX(frontmost.x);
 		this->_lal->setY(frontmost.y);
 		this->_lal->setZ(frontmost.z);
+		//cout << _lal->getX() << endl;
 		//cout << "im desperate!"<<endl;
 	}
 
