@@ -44,7 +44,7 @@
 #include <algorithm>
 #include <vtkCamera.h>
 #include <sstream>
-#include "ImageGraphCut.h"
+#include "GrowCut.h"
 #include "MarchingCubes.h"
 #include "LeapAbstractionLayer.h" 
 
@@ -88,7 +88,10 @@ protected:
 	vtkSmartPointer<vtkImageViewer2> _ImageViewer;
 	LeapAbstractionLayer* _lal;
 	vtkTextMapper* _StatusMapper;
-	ImageGraphCut* _graph_cut;
+
+	//ImageGraphCut* _graph_cut;
+	GrowCut* _grow_cut;
+
 	MarchingCubes* _marching_cubes;
 	int _orientation;
 	std::string _outputName;

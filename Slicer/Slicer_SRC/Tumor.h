@@ -42,9 +42,11 @@
 #include <algorithm>
 #include <sstream>
 #include <limits>
+#include "constants.h"
+#include <map>
 
 #define BB_SPACE_XY 40
-#define BB_SPACE_Z  8
+#define BB_SPACE_Z  10
 
 
 using namespace std;
@@ -62,16 +64,24 @@ public:
 	struct Point3D{
 		int x, y, z;
 		int nil = NULL;
+		
+		int point_type;
+		int prev_point_type;
+		float strength;
+		float prev_strength;
+		int color;
+		
 		int& operator[](int q) { switch (q){ case 0: return x; case 1: return y; case 2: return z; default: return nil; } }
-		Point3D(int _x,int _y,int _z) : x(_x), y(_y), z(_z) {
+		Point3D(int _x, int _y, int _z, int _point_type, float _strength, int _color) : x(_x), y(_y), z(_z), point_type(_point_type), prev_point_type(_point_type), strength(_strength), prev_strength(_strength), color(_color){
 
 		}
 	};
-	vector<Tumor::Point3D> points;
+
+	map<int, Tumor::Point3D> points;
 
 	Tumor(Tumor::Point3D limits);
 	virtual ~Tumor(){
-
+//		delete points;
 	}
 	
 
@@ -81,11 +91,12 @@ protected:
 	TumorBoundingBox bBox;
 
 public:
+	int numSeeds;
 	/** Add new point to this tumor, and update the bounding box accordingly*/
 	void addPoint(Point3D, Point3D);
 
 	/** Return this tumor's set of points*/
-	vector<Point3D> getPoints();
+	map<int, Tumor::Point3D>* getPoints();
 	
 	/** Return this tumor's ID*/
 	int getTId();
@@ -103,7 +114,7 @@ public:
 	int getBBoxSize();
 
 	/** put in neighbors an array with all the neighbors' ids*/
-	void getNeighbors(vtkIdType id,int* neighbors);
+	void getNeighbors(Tumor::Point3D point, int* neighbors);
 };
 
 #endif

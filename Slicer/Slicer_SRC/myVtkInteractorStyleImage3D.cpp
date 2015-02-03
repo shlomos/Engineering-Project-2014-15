@@ -41,9 +41,10 @@ void myVtkInteractorStyleImage3D::SetStatusMapper(vtkTextMapper* statusMapper) {
 	_StatusMapper = statusMapper;
 }
 
-void myVtkInteractorStyleImage3D::Initialize(std::string outputName){
+void myVtkInteractorStyleImage3D::Initialize(std::string outputName, vtkSphereSource* sphereCursor){
 	_drawSize = DEFAULT_DRAW_SIZE;
 	_lal = LeapAbstractionLayer::getInstance();
+	_sphereCursor = sphereCursor;
 	_outputName = outputName;
 	_hfMode = false;
 	_rotLock = true;
@@ -119,7 +120,19 @@ void myVtkInteractorStyleImage3D::OnTimer(){
 	else{
 		Interactor->SetEventPosition(winSize[0] / 2, winSize[1] / 2);
 	}
-	//cout << Interactor->GetEventPosition()[0] << ":" << Interactor->GetEventPosition()[1] << endl;
+	// Trying to set cursor:
+	//cout << "Trying to set cursor:" << endl;
+
+	//_sphereCursor->SetCenter(
+	//	0,
+	//	1.0,
+	//	0);
+	//cout << _lal->getX()<< ":"
+	//	<< _lal->getY()-200 << ":"
+	//	<< _lal->getZ() << endl;
+	//cout << "Cursor set." << endl;
+	//_sphereCursor->Modified();
+	//Interactor->GetRenderWindow()->GetRenderers()->GetFirstRenderer()->GetActors()->GetLastActor()->GetMapper()->Update();
 	// Delegate
 	vtkInteractorStyleJoystickCamera::OnTimer();
 	
@@ -188,41 +201,40 @@ void myVtkInteractorStyleImage3D::OnKeyDown() {
 		vtkSmartPointer<vtkPropPicker>  picker =
 			vtkSmartPointer<vtkPropPicker>::New();
 		vtkRenderer* ren = this->Interactor->GetRenderWindow()->GetRenderers()->GetFirstRenderer();
-		//cout << picker->GetTolerance() << endl;
-		//picker->SetTolerance(0.5);
 		picker->Pick(clickPos[0], clickPos[1], 0, ren);
 		double* pos = picker->GetPickPosition();
 		vtkPolyDataMapper* mapper = (vtkPolyDataMapper*)ren->GetActors()->GetLastActor()->GetMapper();
 		vtkPolyData* mesh = mapper->GetInput();
 		vtkPointData* pd = mesh->GetPointData();
 		vtkIntArray* scalars = (vtkIntArray*)pd->GetScalars();
+
 		vtkIdType id = mesh->FindPoint(pos);
 		cout << "The Point Is: " << id << endl;
+		cout << "Number of components is: " << scalars->GetNumberOfComponents() << endl;
 		if (id > -1 && _currSource == -1){
 			_currSource = id;
-			cout << "First set." << endl;
+			cout << "Start set." << endl;
 		}
 		else if (id > -1 && _currSource != -1){
 			//Make a line connection.
-			cout << "First set." << endl;
+			cout << "End set." << endl;
 			vtkSmartPointer<vtkDijkstraGraphGeodesicPath> dijkstra =
 				vtkSmartPointer<vtkDijkstraGraphGeodesicPath>::New();
 			dijkstra->SetInputData(mesh);
 			dijkstra->SetStartVertex(_currSource);
 			dijkstra->SetEndVertex(id);
 			dijkstra->Update();
-			cout << " Got a dijkstra!" << endl;
+			cout << "Found Shortest path!" << endl;
 			vtkPolyData* path = dijkstra->GetOutput();
 			cout << "Num. of points: " <<path->GetNumberOfPoints() << endl;
-			scalars->SetValue(15000, 2);
-			cout << scalars->GetValue(15000) << endl;
 			for (int i = 0; i < path->GetNumberOfPoints(); i++){
-				cout << scalars->GetValue(mesh->FindPoint(path->GetPoint(i))) << endl;
-				scalars->SetValue(mesh->FindPoint(path->GetPoint(i)),FOREGROUND);
+				scalars->SetComponent(mesh->FindPoint(path->GetPoint(i)),0,FOREGROUND);
 			}
 			_currSource = -1;
 		}
-		scalars->SetValue(id, FOREGROUND);
+		if (id > -1){
+			scalars->SetComponent(id, 0, FOREGROUND);
+		}
 		scalars->Modified();
 		mesh->Modified();
 		pd->Modified();

@@ -21,6 +21,7 @@
 #include <vtkCellData.h>
 #include <vtkRegularPolygonSource.h>
 #include <vtkPolyData.h>
+#include <vtkSphereSource.h>
 #include <vtkSmartPointer.h>
 #include <vtkPolyDataMapper.h>
 #include <vtkActor.h>
@@ -81,6 +82,8 @@ public:
 
 protected:
 	vtkTextMapper* _StatusMapper;
+	//vtkActor* _meshActor;
+	vtkSphereSource* _sphereCursor;
 	std::string _outputName;
 	LeapAbstractionLayer* _lal;
 	int _drawSize;
@@ -91,7 +94,7 @@ protected:
 public:
 	myVtkInteractorStyleImage3D();
 	void SetStatusMapper(vtkTextMapper* statusMapper);
-	void Initialize(std::string outputName);
+	void Initialize(std::string outputName, vtkSphereSource*);
 
 protected:
 	void WriteToFile();

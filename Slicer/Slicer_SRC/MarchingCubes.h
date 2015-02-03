@@ -18,6 +18,7 @@
 #include <vtkRenderer.h>
 #include <vtkLookupTable.h>
 #include <vtkStructuredPoints.h>
+#include <vtkProperty.h>
 #include "constants.h"
 #include <vtkImageViewer2.h>
 #include <vtkImageMaskBits.h>

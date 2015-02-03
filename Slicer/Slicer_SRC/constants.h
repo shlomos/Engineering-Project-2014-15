@@ -21,8 +21,8 @@
 #define CHICKEN_PI 3.141592
 
 // graphCuts related values
-//#define LOWER_BOUND         0
-//#define UPPER_BOUND         104
+#define LOWER_BOUND         0
+#define UPPER_BOUND         104
 #define MIN_POSSIBLE_VALUE  3000
 #define SILENCING_FACTOR    0.99
 #define NEDGES_FACTOR       1000
@@ -31,7 +31,7 @@
 #define NUM_ITER_OPENCLOSE  2
 #define SMOOTHING_FACTOR_XY 50.0
 #define SMOOTHING_FACTOR_Z	50.0
-
+#define NUM_OF_GROW_ITERATIONS 50
 // 
 #define ISO_VALUE 0.1
 
