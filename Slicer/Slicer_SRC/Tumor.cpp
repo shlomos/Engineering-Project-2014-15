@@ -25,6 +25,11 @@ void Tumor::addPoint(Tumor::Point3D point, Tumor::Point3D limits){
 	cout << " point[2] " << point[2] << endl;*/
 	this->points.insert(std::pair<int, Tumor::Point3D>(map_key, point));
 	this->numSeeds++;
+	
+	//update active points' list
+	if (point.point_type != NOT_ACTIVE) {
+		this->active_points.insert(std::pair<int, Tumor::Point3D>(map_key, point));
+	}
 
 	if (point.point_type != FOREGROUND) { 
 		return; 

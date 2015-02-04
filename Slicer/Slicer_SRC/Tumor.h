@@ -78,6 +78,7 @@ public:
 	};
 
 	map<int, Tumor::Point3D> points;
+	map<int, Tumor::Point3D> active_points;
 
 	Tumor(Tumor::Point3D limits);
 	virtual ~Tumor(){

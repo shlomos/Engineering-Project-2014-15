@@ -137,40 +137,46 @@ vtkStructuredPoints* GrowCut::PerformSegmentation(){
 			cout << "iteration: " << t << endl;
 			
 
-			for (std::map<int, Tumor::Point3D>::iterator it = points->begin(); it != points->end(); ++it) {
+			for (std::map<int, Tumor::Point3D>::iterator it = this->_tumors.at(i).active_points.begin()/*points->begin()*/; it != this->_tumors.at(i).active_points.end()/*points->end()*/; ++it) {
 				Tumor::Point3D curr_point = it->second;
 				this->_tumors.at(i).getNeighbors(curr_point, neighbors);
 				for (int k = 0; k < 6; k++) {
 					int key = neighbors[k];
-					map<int, Tumor::Point3D>::iterator it2 = points->find(key);
-					if (it2 == points->end()) {
+					map<int, Tumor::Point3D>::iterator neighbor = points->find(key);
+					if (neighbor == points->end()) {
 						continue;
 					}
 
-					Tumor::Point3D np = points->at(key);
+					/*Tumor::Point3D np = points->at(key);
 					if (np.prev_point_type == NOT_ACTIVE){
 						continue;
-					}
+					}*/
 
 					//cout << np.color << ":" << curr_point.color << ":" << g_function(np.color, curr_point.color)*np.prev_strength << "vs" << curr_point.prev_strength << endl;
-					if (g_function(np.color, curr_point.color)*np.prev_strength > curr_point.prev_strength){
-						it->second.point_type = np.prev_point_type;
-						it->second.strength = g_function(np.color, curr_point.color)*np.prev_strength;
+					float g_value = g_function(neighbor->second.color, curr_point.color)*curr_point.prev_strength;
+					if (g_value > neighbor->second.prev_strength){
+						neighbor->second.point_type = curr_point.prev_point_type;
+						neighbor->second.strength = g_value;
+						if (this->_tumors.at(i).active_points.find(key) != this->_tumors.at(i).active_points.end()) {
+							this->_tumors.at(i).active_points.at(key).point_type = curr_point.prev_point_type;
+							this->_tumors.at(i).active_points.at(key).strength = g_value;
+						}
+						else {
+							this->_tumors.at(i).active_points.insert(std::pair<int, Tumor::Point3D>(key, neighbor->second));
+						}
+
 					}
 					point_id = ComputePointId(it->second[0], it->second[1], it->second[2]);
-					//if (it->second.point_type == BACKGROUND){
-					//	//counter++;
-					//	it->second.point_type = NOT_ACTIVE;
-					//}
-					//counter++;
 					scalars->SetValue(point_id, it->second.point_type);
 					scalars->Modified();
 				}
 			}
 
-			for (std::map<int, Tumor::Point3D>::iterator it = points->begin(); it != points->end(); ++it) {
+			for (std::map<int, Tumor::Point3D>::iterator it = this->_tumors.at(i).active_points.begin()/*points->begin()*/; it != this->_tumors.at(i).active_points.end()/*points->end()*/; ++it) {
 				it->second.prev_point_type = it->second.point_type;
 				it->second.prev_strength = it->second.strength;
+				points->at(it->first).prev_point_type = it->second.point_type;
+				points->at(it->first).prev_strength = it->second.strength;
 			}
 		}
 		cout << "after T iterations!" << endl;
@@ -210,5 +216,5 @@ float GrowCut::g_function(int Cp, int Cq) {
 	//cout << "max min" << this->max_color << ":" << this->min_color << endl;
 	//cout << "formula: " << 1.0-(float(abs(Cp - Cq)) / float(this->max_color - this->min_color)) << endl;
 	//return 1.0 - (float(abs(Cp - Cq)) / float(this->max_color - this->min_color));
-	return exp(-float(abs(Cp - Cq))*float(abs(Cp - Cq))/2);
+	return exp(-float(abs(Cp - Cq))*float(abs(Cp - Cq)));
 }
