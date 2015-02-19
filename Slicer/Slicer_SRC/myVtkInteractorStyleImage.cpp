@@ -323,7 +323,7 @@ void myVtkInteractorStyleImage::OnKeyDown() {
 		cout << "Orientation key was pressed." << endl;
 		ToggleOrientation();
 	}
-	else if (key.compare("f") == 0) {
+	else if (key.compare("h") == 0) {
 		_hfMode = !_hfMode;
 		cout << "Hands free mode: " << (_hfMode ? "ON" : "OFF") << endl;
 	}
@@ -513,7 +513,7 @@ void myVtkInteractorStyleImage::ProcessLeapEvents(vtkObject* object, unsigned lo
 			x[1] = cross_2;
 			x[2] = cross_1;
 			selection_structured_points->ComputeStructuredCoordinates(x, ijk, pCoord);
-			ijk[0] = intStyle->_lal->getSlice();
+			ijk[0] = intStyle->_ImageViewer->GetSlice();//_lal->getSlice();
 			ijk2[1] = 0;
 			ijk2[2] = 0;
 			ijk2[0] = ijk[0];
@@ -537,7 +537,7 @@ void myVtkInteractorStyleImage::ProcessLeapEvents(vtkObject* object, unsigned lo
 			x[1] = cross_3;
 			x[2] = cross_2;
 			selection_structured_points->ComputeStructuredCoordinates(x, ijk, pCoord);
-			ijk[1] = intStyle->_lal->getSlice();
+			ijk[1] = intStyle->_ImageViewer->GetSlice();
 			ijk2[0] = 0;
 			ijk2[1] = ijk[1];
 			ijk2[2] = 0;
@@ -560,7 +560,7 @@ void myVtkInteractorStyleImage::ProcessLeapEvents(vtkObject* object, unsigned lo
 			x[1] = cross_2;
 			x[2] = cross_3;
 			selection_structured_points->ComputeStructuredCoordinates(x, ijk, pCoord);
-			ijk[2] = intStyle->_lal->getSlice();
+			ijk[2] = intStyle->_ImageViewer->GetSlice();
 			ijk2[0] = 0;
 			ijk2[1] = 0;
 			ijk2[2] = ijk[2];

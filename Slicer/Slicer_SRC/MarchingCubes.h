@@ -19,10 +19,14 @@
 #include <vtkLookupTable.h>
 #include <vtkStructuredPoints.h>
 #include <vtkProperty.h>
+#include "CrosshairFactory.h"
 #include "constants.h"
 #include <vtkImageViewer2.h>
 #include <vtkImageMaskBits.h>
 #include <vtkCamera.h>
+#include <vtkFollower.h>
+#include <vtkFillHolesFilter.h>
+#include <vtkPolyDataNormals.h>
 #include "myVtkInteractorStyleImage3D.h"
 
 

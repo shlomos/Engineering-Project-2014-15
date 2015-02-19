@@ -30,6 +30,7 @@
 #include <sstream>
 #include <iostream>
 #include "constants.h"
+#include "CrosshairFactory.h"
 #include <vtkLookupTable.h>
 #include <vtkImageActor.h>
 #include <vtkImageMapToColors.h>
@@ -140,8 +141,9 @@ int main(int argc, char* argv[])
 	selection->GetPointData()->SetScalars(selection_colors);
 
 	//crosshair
+	CrosshairFactory* crossFac = CrosshairFactory::getInstance();
 	// get window's size for crosshair creation and update
-	vtkSmartPointer<vtkActor> crosshair = createCrosshair(reader->GetOutput()->GetBounds());
+	vtkSmartPointer<vtkActor> crosshair = crossFac->makeCrosshair(reader->GetOutput()->GetBounds());//createCrosshair(reader->GetOutput()->GetBounds());
 	crosshair->GetMapper()->Update();
 	crosshair->SetPickable(false);
 
@@ -233,7 +235,7 @@ int main(int argc, char* argv[])
    usageTextMapper->SetInput("Options:\n - Hold Shift to scroll between slices.\n - Hold Ctrl"
 	   " to draw segmentation.\n - Hold Alt to mark background.\n\n -- Press '1' and '2' to change"
 	   " brush's size\n -- Press 'o' to toggle orientation\n -- Press 's' to save segmentation\n --"
-	   "  Press 'l' to load segmentation\n --  Press 'r' to reset selection\n -- Press 'f' for hands-free mode.");
+	   "  Press 'l' to load segmentation\n --  Press 'r' to reset selection\n -- Press 'h' for hands-free mode.");
    usageTextMapper->SetTextProperty(usageTextProp);
  
    vtkSmartPointer<vtkActor2D> usageTextActor = vtkSmartPointer<vtkActor2D>::New();
