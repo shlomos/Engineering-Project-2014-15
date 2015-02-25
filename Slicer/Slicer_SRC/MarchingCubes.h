@@ -21,13 +21,15 @@
 #include <vtkProperty.h>
 #include "CrosshairFactory.h"
 #include "constants.h"
-#include <vtkImageViewer2.h>
+#include <vtkCursor2D.h>
 #include <vtkImageMaskBits.h>
 #include <vtkCamera.h>
 #include <vtkFollower.h>
 #include <vtkFillHolesFilter.h>
 #include <vtkPolyDataNormals.h>
 #include "myVtkInteractorStyleImage3D.h"
+#include <vtkDijkstraGraphGeodesicPath.h>
+#include "meshLeaksCorrection.h"
 
 
 /** This class is reponsible for creating the mesh using MarchingCubes algorithm*/

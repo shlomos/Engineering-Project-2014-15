@@ -84,6 +84,7 @@ protected:
 	vtkTextMapper* _StatusMapper;
 	//vtkActor* _meshActor;
 	vtkSmartPointer<vtkRenderer> _crosshair;
+	vtkSmartPointer<vtkRenderer> _mesh;
 	std::string _outputName;
 	LeapAbstractionLayer* _lal;
 	int _drawSize;

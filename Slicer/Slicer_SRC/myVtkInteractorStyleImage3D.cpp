@@ -45,6 +45,11 @@ void myVtkInteractorStyleImage3D::Initialize(std::string outputName, vtkSmartPoi
 	_drawSize = DEFAULT_DRAW_SIZE;
 	_lal = LeapAbstractionLayer::getInstance();
 	_crosshair = renover;
+	vtkRendererCollection* rencol = this->Interactor->GetRenderWindow()->GetRenderers();
+	rencol->InitTraversal();
+	vtkRenderer* ren = /*rencol->GetFirstRenderer();/*/rencol->GetNextItem();
+	_mesh = rencol->GetNextItem();
+	//this->SetDefaultRenderer(_mesh);
 	_outputName = outputName;
 	_hfMode = false;
 	_rotLock = true;
@@ -93,6 +98,10 @@ void myVtkInteractorStyleImage3D::doSegment() {
 void myVtkInteractorStyleImage3D::OnLeftButtonDown()
 {
 	std::cout << "Pressed left mouse button." << std::endl;
+	this->StartRotate();
+	MakeAnnotation(FOREGROUND);
+	// Forward events
+	vtkInteractorStyleJoystickCamera::OnLeftButtonDown();
 }
 
 void myVtkInteractorStyleImage3D::OnRightButtonDown()
@@ -106,13 +115,15 @@ void myVtkInteractorStyleImage3D::redrawCrosshair() {
 	vtkActor* cross_actor = this->_crosshair->GetActors()->GetLastActor();
 	vtkSmartPointer<vtkPolyData> pd = (vtkPolyData *)((vtkPolyDataMapper*)(cross_actor->GetMapper())->GetInputAsDataSet());
 	vtkSmartPointer<vtkPoints> new_pts = vtkSmartPointer<vtkPoints>::New();
-	vtkRendererCollection* rencol = this->Interactor->GetRenderWindow()->GetRenderers();
-	rencol->InitTraversal();
-	vtkRenderer* ren = /*rencol->GetFirstRenderer();/*/rencol->GetNextItem();
-	ren = rencol->GetNextItem();
-	vtkPolyDataMapper* mapper = (vtkPolyDataMapper*)ren->GetActors()->GetLastActor()->GetMapper();
-	vtkPolyData* mesh = mapper->GetInput();
-	double* size = mesh->GetBounds();
+	//vtkRendererCollection* rencol = this->Interactor->GetRenderWindow()->GetRenderers();
+	//rencol->InitTraversal();
+	//vtkRenderer* ren = /*rencol->GetFirstRenderer();/*/rencol->GetNextItem();
+	//ren = rencol->GetNextItem();
+	//vtkPolyDataMapper* mapper = (vtkPolyDataMapper*)_mesh->GetActors()->GetLastActor()->GetMapper();
+	//vtkPolyData* mesh = mapper->GetInput();
+	//_mesh->GetActors()->InitTraversal();
+	//vtkActor* mesh = _mesh->GetActors()->GetLastActor();
+	double size[] = { 0, 0, 0, 0, 0, 0 };//mesh->GetBounds();
 	double cross_x = std::max(size[0], std::min(0.5*_lal->getX(), size[1]));
 	double cross_y = std::min(size[3], std::max(0.5*_lal->getZ(), size[2]));
 	
@@ -133,18 +144,24 @@ void myVtkInteractorStyleImage3D::OnRightButtonUp()
 
 void myVtkInteractorStyleImage3D::OnLeftButtonUp()
 {
+	this->EndRotate();
 }
 
 void myVtkInteractorStyleImage3D::OnTimer(){
 	//cout << "Got a leap event!" << endl;
 	// render
-	int * winSize = Interactor->GetRenderWindow()->GetSize();
-	if (this->Interactor->GetShiftKey()){
-		Interactor->SetEventPosition(-2*_lal->getX() + winSize[0] / 2, winSize[1] / 2 + 1.5*_lal->getZ());
-	}
-	else{
-		Interactor->SetEventPosition(winSize[0] / 2, winSize[1] / 2);
-	}
+	//int * winSize = Interactor->GetRenderWindow()->GetSize();
+	//if (this->Interactor->GetShiftKey()){
+	//	Interactor->SetEventPosition(-2*_lal->getX() + winSize[0] / 2, winSize[1] / 2 + 1.5*_lal->getZ());
+	//}
+	//else{
+	//	Interactor->SetEventPosition(winSize[0] / 2, winSize[1] / 2);
+	//}
+	//vtkCursor2D* cursor = ((vtkCursor2D*)_crosshair->GetActors()->GetLastActor()->GetMapper()->GetInput());
+	//cursor->SetFocalPoint(0, 0, 0.0);
+	//cursor->Update();
+	//cursor->Modified();
+	//_crosshair->GetActors()->GetLastActor()->GetMapper()->Update();
 	//this->redrawCrosshair();
 	// Trying to set cursor:
 	//cout << "Trying to set cursor:" << endl;
@@ -166,62 +183,23 @@ void myVtkInteractorStyleImage3D::OnTimer(){
 
 
 void myVtkInteractorStyleImage3D::MakeAnnotation(vtkIdType annotation){
-	int* clickPos = this->Interactor->GetEventPosition();
+	int* clickPos = this->GetInteractor()->GetEventPosition();
+
+	// Pick from this location.
 	vtkSmartPointer<vtkPropPicker>  picker =
 		vtkSmartPointer<vtkPropPicker>::New();
-	vtkRendererCollection* rencol = this->Interactor->GetRenderWindow()->GetRenderers();
-	rencol->InitTraversal();
-	vtkRenderer* ren = /*rencol->GetFirstRenderer();/*/rencol->GetNextItem();
-	ren = rencol->GetNextItem();
-	vtkPropCollection* pcol = vtkPropCollection::New();
-	pcol->AddItem(ren->GetActors()->GetLastActor());
-	//vtkRenderer* next = rencol->GetNextItem();
-	//next = rencol->GetNextItem();
-	picker->PickProp((double)clickPos[0], (double)clickPos[1], ren, pcol);
-	double* pos = picker->GetPickPosition();
-	vtkPolyDataMapper* mapper = (vtkPolyDataMapper*)ren->GetActors()->GetLastActor()->GetMapper();
-	vtkPolyData* mesh = mapper->GetInput();
-	cout << "Num of points in mesh is: " << mesh->GetNumberOfPoints() << endl;
-	//cout << "Num of points in othre rend is: " << next->GetActors()->GetLastActor()->GetMapper()->GetInput()->GetNumberOfPoints() << endl;
-	//cout << "Num of points in cross is: " << _crosshair->GetActors()->GetLastActor()->GetMapper()->GetInput()->GetNumberOfPoints() << endl;
-	vtkPointData* pd = mesh->GetPointData();
-	vtkIntArray* scalars = (vtkIntArray*)pd->GetScalars();
+	picker->Pick(clickPos[0], clickPos[1], 0, this->GetDefaultRenderer());
 
-	vtkIdType id = mesh->FindPoint(pos);
-	cout << "The Point Is: " << id << endl;
-	cout << "The Pos Is: " << clickPos[0] << "," << clickPos[1] << "," << pos[2] << endl;
-	cout << "Number of components is: " << scalars->GetNumberOfComponents() << endl;
-	if (id > -1 && _currSource == -1){
-		_currSource = id;
-		cout << "Start set." << endl;
-	}
-	else if (id > -1 && _currSource != -1){
-		//Make a line connection.
-		cout << "End set." << endl;
-		vtkSmartPointer<vtkDijkstraGraphGeodesicPath> dijkstra =
-			vtkSmartPointer<vtkDijkstraGraphGeodesicPath>::New();
-		dijkstra->SetInputData(mesh);
-		dijkstra->SetStartVertex(_currSource);
-		dijkstra->SetEndVertex(id);
-		dijkstra->Update();
-		cout << "Found Shortest path!" << endl;
-		vtkPolyData* path = dijkstra->GetOutput();
-		cout << "Num. of points: " << path->GetNumberOfPoints() << endl;
-		for (int i = 0; i < path->GetNumberOfPoints(); i++){
-			scalars->SetValue(mesh->FindPoint(path->GetPoint(i)), annotation);
-		}
-		_currSource = -1;
-	}
-	if (id > -1){
-		//cout << "component size: " << scalars->GetElementComponentSize() << endl;
-		cout << scalars->GetValue(id) << endl;
-		scalars->SetValue(id, annotation);
-		cout << scalars->GetValue(id) << endl;
-	}
-	scalars->Modified();
-	mesh->Modified();
-	pd->Modified();
-	mapper->Update();
+	double* pos = picker->GetPickPosition();
+	std::cout << "Pick position (world coordinates) is: "
+		<< pos[0] << " " << pos[1]
+		<< " " << pos[2] << std::endl;
+
+	std::cout << "Picked actor: " << picker->GetActor() << std::endl;
+	vtkPolyDataMapper* mapper = (vtkPolyDataMapper*)(this->GetDefaultRenderer()->GetActors()->GetLastActor()->GetMapper());
+	vtkIntArray* arr = (vtkIntArray*)mapper->GetInput()->GetPointData()->GetScalars();
+	arr->SetValue(mapper->GetInput()->FindPoint(pos), 2);
+	arr->Modified();
 }
 
 void myVtkInteractorStyleImage3D::OnKeyUp() {}

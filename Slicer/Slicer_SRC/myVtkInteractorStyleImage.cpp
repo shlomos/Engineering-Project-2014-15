@@ -120,23 +120,18 @@ void myVtkInteractorStyleImage::ToggleOrientation() {
 }
 
 void myVtkInteractorStyleImage::LoadFromFile(){
-	string filename = "ref.vtk";
-	cout << "Please enter the filename of the segmentation to load:... Done. Using \"ref.vtk\".." << endl;
-	//cin >> filename;
+	string filename;// = "ref.vtk";
+	cout << "Please enter the filename of the segmentation to load:..." << endl;//Done. Using \"" << filename << "\"" << endl;
+	cin >> filename;
 	vtkSmartPointer<vtkStructuredPointsReader> sLoader =
 		vtkSmartPointer<vtkStructuredPointsReader>::New();
 	sLoader->SetFileName(filename.c_str());
 	cout << "Reading, please wait..." << endl;
 	sLoader->Update();
 	vtkImageMapToColors* mapper = (vtkImageMapToColors*)_selection_actor->GetMapper()->GetInputAlgorithm();
-	//mapper->SetInputData(sLoader->GetOutput());
 	vtkIntArray* temp = (vtkIntArray*)(sLoader->GetOutput()->GetPointData()->GetScalars());
-	//for (int i = 0; i < temp->GetSize(); i++){
-	//	this->_selection_scalars->SetValue(i, temp->GetValue(i));
-	//}
-
 	this->_selection_scalars->DeepCopy(temp);
-
+	((vtkStructuredPoints*)(mapper->GetInput()))->GetPointData()->SetScalars(this->_selection_scalars);
 	cout << "Updating view, just a little longer..." << endl;
 	this->_selection_scalars->Modified();
 	this->_selection_actor->Modified();

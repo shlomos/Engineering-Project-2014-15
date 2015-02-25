@@ -139,7 +139,6 @@ int main(int argc, char* argv[])
 	selection_colors->SetNumberOfTuples(selection->GetNumberOfPoints());
 	selection_colors->SetName("selection_colors");
 	selection->GetPointData()->SetScalars(selection_colors);
-
 	//crosshair
 	CrosshairFactory* crossFac = CrosshairFactory::getInstance();
 	// get window's size for crosshair creation and update

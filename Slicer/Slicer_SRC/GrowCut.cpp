@@ -216,5 +216,5 @@ float GrowCut::g_function(int Cp, int Cq) {
 	//cout << "max min" << this->max_color << ":" << this->min_color << endl;
 	//cout << "formula: " << 1.0-(float(abs(Cp - Cq)) / float(this->max_color - this->min_color)) << endl;
 	//return 1.0 - (float(abs(Cp - Cq)) / float(this->max_color - this->min_color));
-	return exp(-float(abs(Cp - Cq))*float(abs(Cp - Cq)));
+	return exp(-1.5*float(abs(Cp - Cq))*float(abs(Cp - Cq)));
 }
