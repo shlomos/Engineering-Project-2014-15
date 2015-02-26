@@ -314,6 +314,12 @@ void myVtkInteractorStyleImage::OnKeyDown() {
 		cout << "Draw size was changed to " << _drawSize + 1 << endl;
 		this->_drawSize = std::min(MAX_DRAW_SIZE, _drawSize + 1);
 	}
+	else if (key.compare("3") == 0) {
+		Interactor->GetRenderWindow()->SetFullScreen(1);
+	}
+	else if (key.compare("4") == 0) {
+		Interactor->GetRenderWindow()->SetFullScreen(0);
+	}
 	else if (key.compare("o") == 0) {
 		cout << "Orientation key was pressed." << endl;
 		ToggleOrientation();

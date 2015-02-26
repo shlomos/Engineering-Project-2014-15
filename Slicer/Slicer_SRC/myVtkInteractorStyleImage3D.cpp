@@ -41,15 +41,9 @@ void myVtkInteractorStyleImage3D::SetStatusMapper(vtkTextMapper* statusMapper) {
 	_StatusMapper = statusMapper;
 }
 
-void myVtkInteractorStyleImage3D::Initialize(std::string outputName, vtkSmartPointer<vtkRenderer> renover){
+void myVtkInteractorStyleImage3D::Initialize(std::string outputName){
 	_drawSize = DEFAULT_DRAW_SIZE;
 	_lal = LeapAbstractionLayer::getInstance();
-	_crosshair = renover;
-	vtkRendererCollection* rencol = this->Interactor->GetRenderWindow()->GetRenderers();
-	rencol->InitTraversal();
-	vtkRenderer* ren = /*rencol->GetFirstRenderer();/*/rencol->GetNextItem();
-	_mesh = rencol->GetNextItem();
-	//this->SetDefaultRenderer(_mesh);
 	_outputName = outputName;
 	_hfMode = false;
 	_rotLock = true;
@@ -68,7 +62,7 @@ void myVtkInteractorStyleImage3D::ResetAll(){
 	vtkPolyData* mesh = mapper->GetInput();
 	vtkPointData* pd = mesh->GetPointData();
 	vtkIntArray* scalars = (vtkIntArray*)pd->GetScalars();
-	for (int i = 0; i < mesh->GetNumberOfPoints();i++){
+	for (int i = 0; i < mesh->GetNumberOfPoints(); i++){
 		scalars->SetValue(i, NOT_ACTIVE);
 	}
 	scalars->Modified();
@@ -92,13 +86,103 @@ void myVtkInteractorStyleImage3D::WriteToFile() {
 
 typedef void(myVtkInteractorStyleImage3D::*workerFunction)();
 
-void myVtkInteractorStyleImage3D::doSegment() {	
+void myVtkInteractorStyleImage3D::doSegment() {
+}
+
+void myVtkInteractorStyleImage3D::RemoveLeaks(){
+	cout << "Started fixing mesh!" << endl;
+	typedef double PixelType;
+	typedef unsigned short SegPixelType;
+	const unsigned char dim = 3;
+
+	typedef itk::Image<PixelType, dim> ImageType;
+	typedef itk::Image<SegPixelType, dim> SegImageType;
+
+	MeshLeaksCorrector mlc;
+	ImageType::Pointer inputImage = mlc.read3DImage<ImageType>("GG.vtk");
+	//SegImageType::Pointer segInputImage = read3DImage<SegImageType>(argv[SEG_INPUT_IMAGE_NAME]);
+	//SegImageType::Pointer seedInputImage = read3DImage<SegImageType>(argv[SEED_INPUT_IMAGE_NAME]);
+	//SegImageType::Pointer interiorSeedInputImage = read3DImage<SegImageType>(argv[INTERIOR_SEED_NAME]);
+
+	typedef itk::GradientMagnitudeImageFilter<ImageType, ImageType> GradientFilterType;
+	GradientFilterType::Pointer gradientFilter = GradientFilterType::New();
+	gradientFilter->SetInput(inputImage);
+	gradientFilter->Update();
+	ImageType::Pointer gradientInputImage = gradientFilter->GetOutput();
+
+	typedef itk::ImageRegionIterator<ImageType> IteratorType;
+	typedef itk::ImageRegionIterator<SegImageType> SegIteratorType;
+
+	IteratorType gradIt(gradientFilter->GetOutput(), gradientFilter->GetOutput()->GetLargestPossibleRegion());
+	//SegIteratorType seedIt(seedInputImage, seedInputImage->GetLargestPossibleRegion());
+
+
+	//typedef itk::ImageToVTKImageFilter<SegImageType> SegConverterType;
+	//SegConverterType::Pointer converter = SegConverterType::New();
+	//converter->SetInput(segInputImage);
+	//converter->Update();
+	//vtkSmartPointer<vtkImageData> vtkSegImage = converter->GetOutput();
+
+	//SegConverterType::Pointer seedConverter = SegConverterType::New();
+	//seedConverter->SetInput(seedInputImage);
+	//seedConverter->Update();
+	//vtkSmartPointer<vtkImageData> vtkSeedImage = seedConverter->GetOutput();
+	vtkPolyDataMapper* mapper = (vtkPolyDataMapper*)(this->GetDefaultRenderer()->GetActors()->GetLastActor()->GetMapper());
+	vtkSmartPointer<vtkPolyData> vtkSegImage = mapper->GetInput();
+
+	vtkSmartPointer<vtkSmoothPolyDataFilter> smoother = vtkSmoothPolyDataFilter::New();
+	smoother->SetInputData(vtkSegImage);
+	smoother->SetNumberOfIterations(MESH_SMOOTH_ITERATIONS);
+	smoother->Update();
+	vtkSmartPointer<vtkPolyData> mesh = smoother->GetOutput();
+
+	vtkSmartPointer<vtkStructuredPointsReader> reader =
+		vtkSmartPointer<vtkStructuredPointsReader>::New();
+	reader->SetFileName("GG.vtk");
+	reader->Update();
+	vtkSmartPointer<vtkImageData> vtkGradientImage = reader->GetOutput();
+	/*typedef itk::ImageToVTKImageFilter<ImageType> ConverterType;
+	ConverterType::Pointer gradientConverter = ConverterType::New();
+	gradientConverter->SetInput(inputImage);
+	gradientConverter->Update();
+	vtkSmartPointer<vtkImageData> vtkGradientImage = gradientConverter->GetOutput();*/
+
+	vtkSmartPointer<vtkProbeFilter> probeFilter = vtkProbeFilter::New();
+	probeFilter->SetSourceData(vtkGradientImage);
+	probeFilter->SetInputData(mesh);
+	probeFilter->Update();
+	vtkSmartPointer<vtkGeometryFilter> geometryFilter = vtkGeometryFilter::New();
+	geometryFilter->SetInputData(probeFilter->GetOutput());
+	geometryFilter->Update();
+	vtkSmartPointer<vtkPolyData> gradientMesh = geometryFilter->GetOutput();
+
+	vtkSmartPointer<vtkPolyData> minCurvatureMesh = mlc.polyDataToMinCurvature(mesh);
+
+	//just temporary - don't forget to delete
+	vtkSmartPointer<vtkPolyData> maxCurvatureMesh = mlc.polyDataToMaxCurvature(mesh);
+	//  --- up to here
+
+	vtkSmartPointer<vtkPolyData> minCutMeshLeaks = mlc.minCut(minCurvatureMesh, mesh, gradientMesh, MIN_CURVATURE_TAG, 1.0f);
+
+	vtkSmartPointer<vtkPolyData> minCutMeshInteriorLeaks = mlc.minCut(maxCurvatureMesh, mesh, gradientMesh, MAX_CURVATURE_TAG, 1.0f);
+
+	vtkSmartPointer<vtkPolyData> minCutMesh = mlc.minCutConjunction(minCutMeshLeaks, minCutMeshInteriorLeaks);
+	mlc.attributeDilation(minCutMesh, ATTRIBUTE_DILATION_RADIUS);
+	vtkSmartPointer<vtkPolyData> correctedMesh1 = mlc.laplaceInterpolation(minCutMesh);
+	vtkSmartPointer<vtkPolyDataNormals> normals = vtkPolyDataNormals::New();
+	normals->SetInputData(correctedMesh1);
+	normals->FlipNormalsOn();
+	normals->Update();
+	vtkSmartPointer<vtkPolyData> correctedMesh = normals->GetOutput();
+	cout << "Finished fixing mesh! Wow...." << endl;
+	cout << "Writing mesh to file! laplaceMesh.vtk" << endl;
+	mlc.writePolyData(correctedMesh, "laplaceMesh.vtk");
+	cout << "We won!" << endl;
 }
 
 void myVtkInteractorStyleImage3D::OnLeftButtonDown()
 {
 	std::cout << "Pressed left mouse button." << std::endl;
-	this->StartRotate();
 	MakeAnnotation(FOREGROUND);
 	// Forward events
 	vtkInteractorStyleJoystickCamera::OnLeftButtonDown();
@@ -107,35 +191,9 @@ void myVtkInteractorStyleImage3D::OnLeftButtonDown()
 void myVtkInteractorStyleImage3D::OnRightButtonDown()
 {
 	std::cout << "Pressed left mouse button." << std::endl;
+	MakeAnnotation(BACKGROUND);
 	// Forward events
 	vtkInteractorStyleJoystickCamera::OnRightButtonDown();
-}
-
-void myVtkInteractorStyleImage3D::redrawCrosshair() {
-	vtkActor* cross_actor = this->_crosshair->GetActors()->GetLastActor();
-	vtkSmartPointer<vtkPolyData> pd = (vtkPolyData *)((vtkPolyDataMapper*)(cross_actor->GetMapper())->GetInputAsDataSet());
-	vtkSmartPointer<vtkPoints> new_pts = vtkSmartPointer<vtkPoints>::New();
-	//vtkRendererCollection* rencol = this->Interactor->GetRenderWindow()->GetRenderers();
-	//rencol->InitTraversal();
-	//vtkRenderer* ren = /*rencol->GetFirstRenderer();/*/rencol->GetNextItem();
-	//ren = rencol->GetNextItem();
-	//vtkPolyDataMapper* mapper = (vtkPolyDataMapper*)_mesh->GetActors()->GetLastActor()->GetMapper();
-	//vtkPolyData* mesh = mapper->GetInput();
-	//_mesh->GetActors()->InitTraversal();
-	//vtkActor* mesh = _mesh->GetActors()->GetLastActor();
-	double size[] = { 0, 0, 0, 0, 0, 0 };//mesh->GetBounds();
-	double cross_x = std::max(size[0], std::min(0.5*_lal->getX(), size[1]));
-	double cross_y = std::min(size[3], std::max(0.5*_lal->getZ(), size[2]));
-	
-	//double cross_x = std::max(size[0], std::min((double)Interactor->GetEventPosition()[0], size[1]));
-	//double cross_y = std::min(size[3], std::max((double)Interactor->GetEventPosition()[1], size[2]));
-
-	new_pts->InsertNextPoint(size[0], cross_y, size[5]);
-	new_pts->InsertNextPoint(size[1], cross_y, size[5]);
-	new_pts->InsertNextPoint(cross_x, size[2], size[5]);
-	new_pts->InsertNextPoint(cross_x, size[3], size[5]);
-	pd->SetPoints(new_pts);
-	pd->Modified();
 }
 
 void myVtkInteractorStyleImage3D::OnRightButtonUp()
@@ -144,41 +202,15 @@ void myVtkInteractorStyleImage3D::OnRightButtonUp()
 
 void myVtkInteractorStyleImage3D::OnLeftButtonUp()
 {
-	this->EndRotate();
 }
 
 void myVtkInteractorStyleImage3D::OnTimer(){
-	//cout << "Got a leap event!" << endl;
+	cout << "Got a leap event!" << endl;
 	// render
-	//int * winSize = Interactor->GetRenderWindow()->GetSize();
-	//if (this->Interactor->GetShiftKey()){
-	//	Interactor->SetEventPosition(-2*_lal->getX() + winSize[0] / 2, winSize[1] / 2 + 1.5*_lal->getZ());
-	//}
-	//else{
-	//	Interactor->SetEventPosition(winSize[0] / 2, winSize[1] / 2);
-	//}
-	//vtkCursor2D* cursor = ((vtkCursor2D*)_crosshair->GetActors()->GetLastActor()->GetMapper()->GetInput());
-	//cursor->SetFocalPoint(0, 0, 0.0);
-	//cursor->Update();
-	//cursor->Modified();
-	//_crosshair->GetActors()->GetLastActor()->GetMapper()->Update();
-	//this->redrawCrosshair();
-	// Trying to set cursor:
-	//cout << "Trying to set cursor:" << endl;
-
-	//_sphereCursor->SetCenter(
-	//	0,
-	//	1.0,
-	//	0);
-	//cout << _lal->getX()<< ":"
-	//	<< _lal->getY()-200 << ":"
-	//	<< _lal->getZ() << endl;
-	//cout << "Cursor set." << endl;
-	//_sphereCursor->Modified();
-	//Interactor->GetRenderWindow()->GetRenderers()->GetFirstRenderer()->GetActors()->GetLastActor()->GetMapper()->Update();
-	// Delegate
+	int * winSize = Interactor->GetRenderWindow()->GetSize();
+	Interactor->SetEventPosition((2 * _lal->getX() + winSize[0] / 2), (_lal->getY() / LEAP_MAX_Y)*winSize[1]);
+	Interactor->GetRenderWindow()->SetCursorPosition(Interactor->GetEventPosition()[0], Interactor->GetEventPosition()[1]);
 	vtkInteractorStyleJoystickCamera::OnTimer();
-	
 }
 
 
@@ -197,9 +229,42 @@ void myVtkInteractorStyleImage3D::MakeAnnotation(vtkIdType annotation){
 
 	std::cout << "Picked actor: " << picker->GetActor() << std::endl;
 	vtkPolyDataMapper* mapper = (vtkPolyDataMapper*)(this->GetDefaultRenderer()->GetActors()->GetLastActor()->GetMapper());
-	vtkIntArray* arr = (vtkIntArray*)mapper->GetInput()->GetPointData()->GetScalars();
-	arr->SetValue(mapper->GetInput()->FindPoint(pos), 2);
-	arr->Modified();
+	vtkIntArray* scalars = (vtkIntArray*)mapper->GetInput()->GetPointData()->GetScalars();
+	vtkPolyData* mesh = mapper->GetInput();
+	vtkIdType id = mesh->FindPoint(pos);
+	cout << "The Point Is: " << id << endl;
+	cout << "The Pos Is: " << clickPos[0] << "," << clickPos[1] << "," << pos[2] << endl;
+	cout << "Number of components is: " << scalars->GetNumberOfComponents() << endl;
+	if (id > -1 && _currSource == -1){
+		_currSource = id;
+		cout << "Start set." << endl;
+	}
+	else if (id > -1 && _currSource != -1){
+		//Make a line connection.
+		cout << "End set." << endl;
+		vtkSmartPointer<vtkDijkstraGraphGeodesicPath> dijkstra =
+			vtkSmartPointer<vtkDijkstraGraphGeodesicPath>::New();
+		dijkstra->SetInputData(mesh);
+		dijkstra->SetStartVertex(_currSource);
+		dijkstra->SetEndVertex(id);
+		dijkstra->Update();
+		cout << "Found Shortest path!" << endl;
+		vtkPolyData* path = dijkstra->GetOutput();
+		cout << "Num. of points: " << path->GetNumberOfPoints() << endl;
+		for (int i = 0; i < path->GetNumberOfPoints(); i++){
+			scalars->SetValue(mesh->FindPoint(path->GetPoint(i)), annotation);
+		}
+		_currSource = -1;
+	}
+	if (id > -1){
+		//cout << "component size: " << scalars->GetElementComponentSize() << endl;
+		cout << scalars->GetValue(id) << endl;
+		scalars->SetValue(id, annotation);
+		cout << scalars->GetValue(id) << endl;
+	}
+	scalars->Modified();
+	mesh->Modified();
+	mapper->Update();
 }
 
 void myVtkInteractorStyleImage3D::OnKeyUp() {}
@@ -221,6 +286,15 @@ void myVtkInteractorStyleImage3D::OnKeyDown() {
 	else if (key.compare("2") == 0) {
 		cout << "Draw size was changed to " << _drawSize + 1 << endl;
 	}
+	else if (key.compare("3") == 0) {
+		Interactor->GetRenderWindow()->SetFullScreen(1);
+	}
+	else if (key.compare("4") == 0) {
+		Interactor->GetRenderWindow()->SetFullScreen(0);
+	}
+	else if (key.compare("space") == 0){
+		this->RemoveLeaks();
+	}
 	else if (key.compare("o") == 0) {
 		cout << "Orientation key was pressed." << endl;
 	}
@@ -230,6 +304,9 @@ void myVtkInteractorStyleImage3D::OnKeyDown() {
 	}
 	else if (key.compare("s") == 0) {
 		WriteToFile();
+	}
+	else if (key.compare("q") == 0) {
+		exit(0);
 	}
 	else if (key.compare("a") == 0) {
 		cout << "a pressed!" << endl;

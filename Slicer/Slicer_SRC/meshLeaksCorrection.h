@@ -34,6 +34,7 @@
 #include <vtkTransform.h>
 #include <vtkTransformPolyDataFilter.h>
 #include <vtkImageReader.h>
+#include <itkImage.h>
 
 #include <Eigen/Sparse>
 #include <unsupported/Eigen/UmfPackSupport>
@@ -71,11 +72,11 @@ public:
 	template<class InputImageType>
 	typename InputImageType::Pointer read3DImage(const char* imageName)
 	{
+		typedef itk::Image< double, 3 >         ImageType;
+		typedef itk::ImageFileReader<InputImageType> ReaderType;
 
-		//typedef itk::ImageFileReader<InputImageType> ReaderType;
-		//typename itk::VTKImageImport::Pointer reader = itk::VTKImageImport::New();
-		vtkImageReader* reader = vtkImageReader::New();
-		cout << imageName << endl;
+		ReaderType::Pointer reader = ReaderType::New();
+		//cout << imageName << endl;
 		reader->SetFileName(imageName);
 
 		try
@@ -84,12 +85,13 @@ public:
 		}
 		catch (itk::ExceptionObject & excp)
 		{
-			std::cerr << "An exception occurred. Exception Nr. " << excp << std::endl;
 			std::cerr << "reading input image exception thrown" << std::endl;
+			std::cerr << excp << std::endl;
 			exit(1);
 		}
-		typename InputImageType::Pointer inputImage = reader->GetOutput();
-		return inputImage;
+
+		
+		return reader->GetOutput();
 
 	}
 

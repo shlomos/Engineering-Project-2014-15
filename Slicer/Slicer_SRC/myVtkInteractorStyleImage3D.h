@@ -82,9 +82,6 @@ public:
 
 protected:
 	vtkTextMapper* _StatusMapper;
-	//vtkActor* _meshActor;
-	vtkSmartPointer<vtkRenderer> _crosshair;
-	vtkSmartPointer<vtkRenderer> _mesh;
 	std::string _outputName;
 	LeapAbstractionLayer* _lal;
 	int _drawSize;
@@ -95,7 +92,8 @@ protected:
 public:
 	myVtkInteractorStyleImage3D();
 	void SetStatusMapper(vtkTextMapper* statusMapper);
-	void Initialize(std::string outputName, vtkSmartPointer<vtkRenderer> renover);
+	void Initialize(std::string outputName);
+	void RemoveLeaks();
 
 protected:
 	void WriteToFile();
@@ -103,7 +101,6 @@ protected:
 	void doSegment();
 	void ResetAll();
 	void MakeAnnotation(vtkIdType);
-	void redrawCrosshair();
 	virtual void OnKeyDown();
 	virtual void OnLeftButtonDown();
 	virtual void OnRightButtonDown();
