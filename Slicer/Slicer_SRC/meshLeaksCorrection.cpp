@@ -156,7 +156,7 @@ vtkSmartPointer<vtkPolyData> MeshLeaksCorrector::minCut(vtkSmartPointer<vtkPolyD
 	{
 		double neighborSeedLabel = CORRECT_SEED;
 		
-		seedMesh->GetPointData()->GetScalars("seedsArray")->GetTuple(meshCounter,&currentSeedLabel);
+		seedMesh->GetPointData()->GetScalars("mesh_colors")->GetTuple(meshCounter,&currentSeedLabel);
 		// special user indicated seeds
 		if( currentSeedLabel == curvatureTag)
 		{

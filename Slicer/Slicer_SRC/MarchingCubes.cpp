@@ -39,11 +39,12 @@ MarchingCubes::MarchingCubes(vtkStructuredPoints* selection) {
 	_renderWindow->SetInteractor(_interactor);
 	
 	vtkSmartPointer<vtkLookupTable> lut = vtkSmartPointer<vtkLookupTable>::New();
-	lut->SetNumberOfTableValues(3);
-	lut->SetRange(0, 2);
-	lut->SetTableValue((vtkIdType)NOT_ACTIVE, 0.9, 0.9, 0.9, 1.0);
-	lut->SetTableValue((vtkIdType)FOREGROUND, 1, 0, 0, 1.0);
-	lut->SetTableValue((vtkIdType)BACKGROUND, 0, 1, 0, 1.0);
+	lut->SetNumberOfTableValues(4);
+	lut->SetRange(0, 3);
+	lut->SetTableValue(0, 0.9, 0.9, 0.9, 1.0);
+	lut->SetTableValue(1, 0.9, 0.9, 0.9, 1.0);
+	lut->SetTableValue(2, 0, 1, 0, 1.0);
+	lut->SetTableValue(3, 1, 0, 0, 1.0);
 	lut->Build();
 	vtkPolyData* mesh = _surface->GetOutput();
 
@@ -65,7 +66,7 @@ MarchingCubes::MarchingCubes(vtkStructuredPoints* selection) {
 
 	//end close holes
 
-	_mapper->SetScalarRange(0,2);
+	_mapper->SetScalarRange(0,3);
 	_mapper->SetLookupTable(lut);
 	//cout << "Number of points is: " << mesh->GetNumberOfPoints() << endl;
 	vtkSmartPointer<vtkIntArray> mesh_colors =
@@ -74,7 +75,7 @@ MarchingCubes::MarchingCubes(vtkStructuredPoints* selection) {
 	//mesh_colors->SetNumberOfValues(normals->GetOutput()->GetNumberOfPoints());
 	mesh_colors->SetNumberOfValues(mesh->GetNumberOfPoints());
 	for (int i = 0; i < mesh->GetNumberOfPoints(); i++){
-		mesh_colors->SetValue(i, NOT_ACTIVE);
+		mesh_colors->SetValue(i, 2);
 	}
 	mesh_colors->SetName("mesh_colors");
 	mesh->GetPointData()->SetScalars(mesh_colors);

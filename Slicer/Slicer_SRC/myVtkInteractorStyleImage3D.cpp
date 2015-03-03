@@ -103,19 +103,20 @@ void myVtkInteractorStyleImage3D::RemoveLeaks(){
 	//SegImageType::Pointer segInputImage = read3DImage<SegImageType>(argv[SEG_INPUT_IMAGE_NAME]);
 	//SegImageType::Pointer seedInputImage = read3DImage<SegImageType>(argv[SEED_INPUT_IMAGE_NAME]);
 	//SegImageType::Pointer interiorSeedInputImage = read3DImage<SegImageType>(argv[INTERIOR_SEED_NAME]);
-
+	cout << "Image reading done." << endl;
 	typedef itk::GradientMagnitudeImageFilter<ImageType, ImageType> GradientFilterType;
 	GradientFilterType::Pointer gradientFilter = GradientFilterType::New();
 	gradientFilter->SetInput(inputImage);
 	gradientFilter->Update();
 	ImageType::Pointer gradientInputImage = gradientFilter->GetOutput();
 
+	cout << "Produced gradient image" << endl;
 	typedef itk::ImageRegionIterator<ImageType> IteratorType;
 	typedef itk::ImageRegionIterator<SegImageType> SegIteratorType;
 
 	IteratorType gradIt(gradientFilter->GetOutput(), gradientFilter->GetOutput()->GetLargestPossibleRegion());
 	//SegIteratorType seedIt(seedInputImage, seedInputImage->GetLargestPossibleRegion());
-
+	cout << "GradIt" << endl;
 
 	//typedef itk::ImageToVTKImageFilter<SegImageType> SegConverterType;
 	//SegConverterType::Pointer converter = SegConverterType::New();
@@ -130,11 +131,15 @@ void myVtkInteractorStyleImage3D::RemoveLeaks(){
 	vtkPolyDataMapper* mapper = (vtkPolyDataMapper*)(this->GetDefaultRenderer()->GetActors()->GetLastActor()->GetMapper());
 	vtkSmartPointer<vtkPolyData> vtkSegImage = mapper->GetInput();
 
+	cout << "Extracted mesh from actor" << endl;
+
 	vtkSmartPointer<vtkSmoothPolyDataFilter> smoother = vtkSmoothPolyDataFilter::New();
 	smoother->SetInputData(vtkSegImage);
 	smoother->SetNumberOfIterations(MESH_SMOOTH_ITERATIONS);
 	smoother->Update();
 	vtkSmartPointer<vtkPolyData> mesh = smoother->GetOutput();
+
+	cout << "Mesh smoothed" << endl;
 
 	vtkSmartPointer<vtkStructuredPointsReader> reader =
 		vtkSmartPointer<vtkStructuredPointsReader>::New();
@@ -147,28 +152,38 @@ void myVtkInteractorStyleImage3D::RemoveLeaks(){
 	gradientConverter->Update();
 	vtkSmartPointer<vtkImageData> vtkGradientImage = gradientConverter->GetOutput();*/
 
+	cout << "Read CT image" << endl;
+
 	vtkSmartPointer<vtkProbeFilter> probeFilter = vtkProbeFilter::New();
 	probeFilter->SetSourceData(vtkGradientImage);
 	probeFilter->SetInputData(mesh);
 	probeFilter->Update();
+
+	cout << "Probe finished" << endl;
 	vtkSmartPointer<vtkGeometryFilter> geometryFilter = vtkGeometryFilter::New();
 	geometryFilter->SetInputData(probeFilter->GetOutput());
 	geometryFilter->Update();
 	vtkSmartPointer<vtkPolyData> gradientMesh = geometryFilter->GetOutput();
 
+	cout << "Geometric filter finished" << endl;
+
 	vtkSmartPointer<vtkPolyData> minCurvatureMesh = mlc.polyDataToMinCurvature(mesh);
+	cout << "mlc.minCurv finished" << endl;
 
 	//just temporary - don't forget to delete
 	vtkSmartPointer<vtkPolyData> maxCurvatureMesh = mlc.polyDataToMaxCurvature(mesh);
 	//  --- up to here
-
-	vtkSmartPointer<vtkPolyData> minCutMeshLeaks = mlc.minCut(minCurvatureMesh, mesh, gradientMesh, MIN_CURVATURE_TAG, 1.0f);
-
-	vtkSmartPointer<vtkPolyData> minCutMeshInteriorLeaks = mlc.minCut(maxCurvatureMesh, mesh, gradientMesh, MAX_CURVATURE_TAG, 1.0f);
-
+	cout << "mlc.maaxCurv finished" << endl;
+	vtkSmartPointer<vtkPolyData> minCutMeshLeaks = mlc.minCut(minCurvatureMesh, mesh, gradientMesh, MIN_CURVATURE_TAG, 10.0f);
+	cout << "minCut finished" << endl;
+	vtkSmartPointer<vtkPolyData> minCutMeshInteriorLeaks = mlc.minCut(maxCurvatureMesh, mesh, gradientMesh, MAX_CURVATURE_TAG, 10.0f);
+	cout << "minCut Interior finished" << endl;
 	vtkSmartPointer<vtkPolyData> minCutMesh = mlc.minCutConjunction(minCutMeshLeaks, minCutMeshInteriorLeaks);
+	cout << "Conjunction finished" << endl;
 	mlc.attributeDilation(minCutMesh, ATTRIBUTE_DILATION_RADIUS);
+	cout << "dilation finished" << endl;
 	vtkSmartPointer<vtkPolyData> correctedMesh1 = mlc.laplaceInterpolation(minCutMesh);
+	cout << "laplace finished" << endl;
 	vtkSmartPointer<vtkPolyDataNormals> normals = vtkPolyDataNormals::New();
 	normals->SetInputData(correctedMesh1);
 	normals->FlipNormalsOn();
@@ -177,13 +192,44 @@ void myVtkInteractorStyleImage3D::RemoveLeaks(){
 	cout << "Finished fixing mesh! Wow...." << endl;
 	cout << "Writing mesh to file! laplaceMesh.vtk" << endl;
 	mlc.writePolyData(correctedMesh, "laplaceMesh.vtk");
+	// Create a mapper and actor
+	vtkSmartPointer<vtkPolyDataMapper> mapperE =
+		vtkSmartPointer<vtkPolyDataMapper>::New();
+	mapperE->SetInputData(correctedMesh);
+
+	vtkSmartPointer<vtkActor> actorE =
+		vtkSmartPointer<vtkActor>::New();
+	actorE->SetMapper(mapperE);
+
+	// A renderer and render window
+	vtkSmartPointer<vtkRenderer> renderer =
+		vtkSmartPointer<vtkRenderer>::New();
+	vtkSmartPointer<vtkRenderWindow> renderWindow =
+		vtkSmartPointer<vtkRenderWindow>::New();
+	renderWindow->AddRenderer(renderer);
+
+	// An interactor
+	vtkSmartPointer<vtkRenderWindowInteractor> renderWindowInteractor =
+		vtkSmartPointer<vtkRenderWindowInteractor>::New();
+	renderWindowInteractor->SetRenderWindow(renderWindow);
+
+	// Add the actors to the scene
+	renderer->AddActor(actorE);
+	renderer->SetBackground(.1, .2, .3); // Background color dark blue
+
+	// Render
+	renderWindow->SetWindowName("Corrected Mesh");
+	renderWindow->Render();
+
+	// Begin mouse interaction
+	renderWindowInteractor->Start();
 	cout << "We won!" << endl;
 }
 
 void myVtkInteractorStyleImage3D::OnLeftButtonDown()
 {
 	std::cout << "Pressed left mouse button." << std::endl;
-	MakeAnnotation(FOREGROUND);
+	MakeAnnotation(2);
 	// Forward events
 	vtkInteractorStyleJoystickCamera::OnLeftButtonDown();
 }
@@ -191,7 +237,7 @@ void myVtkInteractorStyleImage3D::OnLeftButtonDown()
 void myVtkInteractorStyleImage3D::OnRightButtonDown()
 {
 	std::cout << "Pressed left mouse button." << std::endl;
-	MakeAnnotation(BACKGROUND);
+	MakeAnnotation(3);
 	// Forward events
 	vtkInteractorStyleJoystickCamera::OnRightButtonDown();
 }
@@ -205,7 +251,6 @@ void myVtkInteractorStyleImage3D::OnLeftButtonUp()
 }
 
 void myVtkInteractorStyleImage3D::OnTimer(){
-	cout << "Got a leap event!" << endl;
 	// render
 	int * winSize = Interactor->GetRenderWindow()->GetSize();
 	Interactor->SetEventPosition((2 * _lal->getX() + winSize[0] / 2), (_lal->getY() / LEAP_MAX_Y)*winSize[1]);
@@ -339,10 +384,10 @@ void myVtkInteractorStyleImage3D::OnKeyDown() {
 		this->LoadFromFile();
 	}
 	else if (key.compare("f") == 0) {
-		this->MakeAnnotation(FOREGROUND);
+		this->MakeAnnotation(2);
 	}
 	else if (key.compare("b") == 0) {
-		this->MakeAnnotation(BACKGROUND);
+		this->MakeAnnotation(3);
 	}
 	else if (key.compare("v") == 0) {
 		//this->UpdateContext();
