@@ -32,6 +32,9 @@
 #include <vtkPolyDataWriter.h>
 #include <vtkCamera.h>
 #include <sstream>
+#include <vtkUnsignedShortArray.h>
+#include <itkImageIORegion.h>
+#include <vtkImageThresholdConnectivity.h>
 
 
 myVtkInteractorStyleImage3D::myVtkInteractorStyleImage3D()
@@ -41,13 +44,14 @@ void myVtkInteractorStyleImage3D::SetStatusMapper(vtkTextMapper* statusMapper) {
 	_StatusMapper = statusMapper;
 }
 
-void myVtkInteractorStyleImage3D::Initialize(std::string outputName){
+void myVtkInteractorStyleImage3D::Initialize(std::string outputName, vtkStructuredPoints* selection){
 	_drawSize = DEFAULT_DRAW_SIZE;
 	_lal = LeapAbstractionLayer::getInstance();
 	_outputName = outputName;
 	_hfMode = false;
-	_rotLock = true;
+	_rotLock = false;
 	_currSource = -1;
+	this->_selection = selection;
 	//Start movement:
 	this->StartRotate();
 	cout << "3D Interactor iniitiated." << std::endl;
@@ -61,7 +65,7 @@ void myVtkInteractorStyleImage3D::ResetAll(){
 	vtkPolyDataMapper* mapper = (vtkPolyDataMapper*)ren->GetActors()->GetLastActor()->GetMapper();
 	vtkPolyData* mesh = mapper->GetInput();
 	vtkPointData* pd = mesh->GetPointData();
-	vtkIntArray* scalars = (vtkIntArray*)pd->GetScalars();
+	vtkUnsignedShortArray* scalars = (vtkUnsignedShortArray*)pd->GetScalars();
 	for (int i = 0; i < mesh->GetNumberOfPoints(); i++){
 		scalars->SetValue(i, NOT_ACTIVE);
 	}
@@ -86,10 +90,8 @@ void myVtkInteractorStyleImage3D::WriteToFile() {
 
 typedef void(myVtkInteractorStyleImage3D::*workerFunction)();
 
-void myVtkInteractorStyleImage3D::doSegment() {
-}
-
 void myVtkInteractorStyleImage3D::RemoveLeaks(){
+	boost::mutex::scoped_lock scoped_lock(_canSegment_mutex);
 	cout << "Started fixing mesh!" << endl;
 	typedef double PixelType;
 	typedef unsigned short SegPixelType;
@@ -100,9 +102,6 @@ void myVtkInteractorStyleImage3D::RemoveLeaks(){
 
 	MeshLeaksCorrector mlc;
 	ImageType::Pointer inputImage = mlc.read3DImage<ImageType>("GG.vtk");
-	//SegImageType::Pointer segInputImage = read3DImage<SegImageType>(argv[SEG_INPUT_IMAGE_NAME]);
-	//SegImageType::Pointer seedInputImage = read3DImage<SegImageType>(argv[SEED_INPUT_IMAGE_NAME]);
-	//SegImageType::Pointer interiorSeedInputImage = read3DImage<SegImageType>(argv[INTERIOR_SEED_NAME]);
 	cout << "Image reading done." << endl;
 	typedef itk::GradientMagnitudeImageFilter<ImageType, ImageType> GradientFilterType;
 	GradientFilterType::Pointer gradientFilter = GradientFilterType::New();
@@ -115,21 +114,11 @@ void myVtkInteractorStyleImage3D::RemoveLeaks(){
 	typedef itk::ImageRegionIterator<SegImageType> SegIteratorType;
 
 	IteratorType gradIt(gradientFilter->GetOutput(), gradientFilter->GetOutput()->GetLargestPossibleRegion());
-	//SegIteratorType seedIt(seedInputImage, seedInputImage->GetLargestPossibleRegion());
 	cout << "GradIt" << endl;
-
-	//typedef itk::ImageToVTKImageFilter<SegImageType> SegConverterType;
-	//SegConverterType::Pointer converter = SegConverterType::New();
-	//converter->SetInput(segInputImage);
-	//converter->Update();
-	//vtkSmartPointer<vtkImageData> vtkSegImage = converter->GetOutput();
-
-	//SegConverterType::Pointer seedConverter = SegConverterType::New();
-	//seedConverter->SetInput(seedInputImage);
-	//seedConverter->Update();
-	//vtkSmartPointer<vtkImageData> vtkSeedImage = seedConverter->GetOutput();
 	vtkPolyDataMapper* mapper = (vtkPolyDataMapper*)(this->GetDefaultRenderer()->GetActors()->GetLastActor()->GetMapper());
-	vtkSmartPointer<vtkPolyData> vtkSegImage = mapper->GetInput();
+	vtkSmartPointer<vtkPolyData> vtkSegImage = vtkSmartPointer<vtkPolyData>::New(); 
+	vtkSegImage->DeepCopy(mapper->GetInput());
+	vtkSegImage->GetPointData()->SetScalars(NULL);
 
 	cout << "Extracted mesh from actor" << endl;
 
@@ -138,19 +127,12 @@ void myVtkInteractorStyleImage3D::RemoveLeaks(){
 	smoother->SetNumberOfIterations(MESH_SMOOTH_ITERATIONS);
 	smoother->Update();
 	vtkSmartPointer<vtkPolyData> mesh = smoother->GetOutput();
-
 	cout << "Mesh smoothed" << endl;
-
-	vtkSmartPointer<vtkStructuredPointsReader> reader =
-		vtkSmartPointer<vtkStructuredPointsReader>::New();
-	reader->SetFileName("GG.vtk");
-	reader->Update();
-	vtkSmartPointer<vtkImageData> vtkGradientImage = reader->GetOutput();
-	/*typedef itk::ImageToVTKImageFilter<ImageType> ConverterType;
+	typedef itk::ImageToVTKImageFilter<ImageType> ConverterType;
 	ConverterType::Pointer gradientConverter = ConverterType::New();
 	gradientConverter->SetInput(inputImage);
 	gradientConverter->Update();
-	vtkSmartPointer<vtkImageData> vtkGradientImage = gradientConverter->GetOutput();*/
+	vtkSmartPointer<vtkImageData> vtkGradientImage = gradientConverter->GetOutput();
 
 	cout << "Read CT image" << endl;
 
@@ -167,16 +149,16 @@ void myVtkInteractorStyleImage3D::RemoveLeaks(){
 
 	cout << "Geometric filter finished" << endl;
 
-	vtkSmartPointer<vtkPolyData> minCurvatureMesh = mlc.polyDataToMinCurvature(mesh);
+	vtkSmartPointer<vtkPolyData> minCurvatureMesh = mlc.polyDataToMinCurvature(mapper->GetInput());
 	cout << "mlc.minCurv finished" << endl;
 
 	//just temporary - don't forget to delete
-	vtkSmartPointer<vtkPolyData> maxCurvatureMesh = mlc.polyDataToMaxCurvature(mesh);
+	vtkSmartPointer<vtkPolyData> maxCurvatureMesh = mlc.polyDataToMaxCurvature(mapper->GetInput());
 	//  --- up to here
 	cout << "mlc.maaxCurv finished" << endl;
-	vtkSmartPointer<vtkPolyData> minCutMeshLeaks = mlc.minCut(minCurvatureMesh, mesh, gradientMesh, MIN_CURVATURE_TAG, 10.0f);
+	vtkSmartPointer<vtkPolyData> minCutMeshLeaks = mlc.minCut(minCurvatureMesh, mapper->GetInput(), gradientMesh, MIN_CURVATURE_TAG, 1.0f);
 	cout << "minCut finished" << endl;
-	vtkSmartPointer<vtkPolyData> minCutMeshInteriorLeaks = mlc.minCut(maxCurvatureMesh, mesh, gradientMesh, MAX_CURVATURE_TAG, 10.0f);
+	vtkSmartPointer<vtkPolyData> minCutMeshInteriorLeaks = mlc.minCut(maxCurvatureMesh, mapper->GetInput(), gradientMesh, MAX_CURVATURE_TAG, 1.0f);
 	cout << "minCut Interior finished" << endl;
 	vtkSmartPointer<vtkPolyData> minCutMesh = mlc.minCutConjunction(minCutMeshLeaks, minCutMeshInteriorLeaks);
 	cout << "Conjunction finished" << endl;
@@ -192,10 +174,72 @@ void myVtkInteractorStyleImage3D::RemoveLeaks(){
 	cout << "Finished fixing mesh! Wow...." << endl;
 	cout << "Writing mesh to file! laplaceMesh.vtk" << endl;
 	mlc.writePolyData(correctedMesh, "laplaceMesh.vtk");
+	vtkSmartPointer<vtkDecimatePro> decimateFilter = vtkDecimatePro::New();
+	decimateFilter->SetInputData(correctedMesh);
+	decimateFilter->SetTargetReduction(DECIMATION_FACTOR);
+	decimateFilter->PreserveTopologyOn();
+	decimateFilter->Update();
+	vtkSmartPointer<vtkPolyData> decimatedMesh = decimateFilter->GetOutput();
+	cout << "Writing mesh to file! decimatedMesh.vtk" << endl;
+	mlc.writePolyData(decimatedMesh, "decimatedMesh.vtk");
+	//2.5D NEW code
+	//Seg input image is the selection_structured_points. (upcast to vtkImageData)
+	typedef itk::VTKImageToImageFilter<SegImageType> SegConverterType;
+	SegConverterType::Pointer converter = SegConverterType::New();
+	cout << "bedug 1" << endl;
+	// selection is not NULL (checked...)
+	cout << "this->_selection->GetScalarType(): " << this->_selection->GetScalarType() << endl;
+	converter->SetInput(this->_selection); 
+	cout << "deb 5" << endl;
+	converter->Update(); // 
+	cout << "bedug 2" << endl;
+	SegImageType::Pointer segInputImage = converter->GetOutput();
+	cout << "bedug 3" << endl;
+	SegImageType::Pointer outputContourImage = mlc.sampleMeshOnImage<SegImageType>(/*decimatedMesh*/correctedMesh1, segInputImage);
+	cout << "bedug 4" << endl;
+	SegImageType::Pointer seedInputImage = mlc.sampleMeshOnImage<SegImageType>(mapper->GetInput(), segInputImage);
+	cout << "bedug 5" << endl;
+	SegImageType::Pointer outputImage = mlc.correctImage<SegImageType>(segInputImage, seedInputImage, outputContourImage);
+
+	typedef itk::ImageFileWriter<SegImageType> WriterType;
+	WriterType::Pointer writer = WriterType::New();
+	cout << "bedug 6" << endl;
+	writer->SetInput(outputImage);
+	cout << "Writing mesh to file! correctedImage.nii.gz" << endl;
+	writer->SetFileName("correctedImage.nii.gz");
+	try{
+		writer->Update();
+	}
+	catch (itk::ExceptionObject & excp)
+	{
+		std::cerr << "writing input image exception thrown" << std::endl;
+		std::cerr << excp << std::endl;
+		exit(1);
+	}
+	
+
+
+	typedef itk::ImageToVTKImageFilter<SegImageType> SegInvConverterType;
+	SegInvConverterType::Pointer correctionConverter = SegInvConverterType::New();
+	cout << "bedug 7" << endl;
+	correctionConverter->SetInput(outputImage);
+	correctionConverter->Update();
+	vtkSmartPointer<vtkImageData> vtkCorrectedImage = correctionConverter->GetOutput();
+	vtkSmartPointer<vtkImageToStructuredPoints> convertFilter =
+		vtkSmartPointer<vtkImageToStructuredPoints>::New();
+	convertFilter->SetInputData(correctionConverter->GetOutput());
+	convertFilter->Update();
+	this->_selection->DeepCopy(convertFilter->GetOutput());
+
+
+	cout << "bedug 8" << endl;
+	vtkSmartPointer<vtkPolyData> outputMesh = mlc.createAndSmoothSurface(vtkCorrectedImage, 50);
+	mlc.writePolyData(outputMesh, "final.vtk");
+	cout << "bedug 9" << endl;
 	// Create a mapper and actor
 	vtkSmartPointer<vtkPolyDataMapper> mapperE =
 		vtkSmartPointer<vtkPolyDataMapper>::New();
-	mapperE->SetInputData(correctedMesh);
+	mapperE->SetInputData(outputMesh);
 
 	vtkSmartPointer<vtkActor> actorE =
 		vtkSmartPointer<vtkActor>::New();
@@ -229,7 +273,7 @@ void myVtkInteractorStyleImage3D::RemoveLeaks(){
 void myVtkInteractorStyleImage3D::OnLeftButtonDown()
 {
 	std::cout << "Pressed left mouse button." << std::endl;
-	MakeAnnotation(2);
+	//MakeAnnotation(2);
 	// Forward events
 	vtkInteractorStyleJoystickCamera::OnLeftButtonDown();
 }
@@ -237,7 +281,7 @@ void myVtkInteractorStyleImage3D::OnLeftButtonDown()
 void myVtkInteractorStyleImage3D::OnRightButtonDown()
 {
 	std::cout << "Pressed left mouse button." << std::endl;
-	MakeAnnotation(3);
+	//MakeAnnotation(3);
 	// Forward events
 	vtkInteractorStyleJoystickCamera::OnRightButtonDown();
 }
@@ -274,7 +318,7 @@ void myVtkInteractorStyleImage3D::MakeAnnotation(vtkIdType annotation){
 
 	std::cout << "Picked actor: " << picker->GetActor() << std::endl;
 	vtkPolyDataMapper* mapper = (vtkPolyDataMapper*)(this->GetDefaultRenderer()->GetActors()->GetLastActor()->GetMapper());
-	vtkIntArray* scalars = (vtkIntArray*)mapper->GetInput()->GetPointData()->GetScalars();
+	vtkUnsignedShortArray* scalars = (vtkUnsignedShortArray*)mapper->GetInput()->GetPointData()->GetScalars();
 	vtkPolyData* mesh = mapper->GetInput();
 	vtkIdType id = mesh->FindPoint(pos);
 	cout << "The Point Is: " << id << endl;
@@ -310,6 +354,7 @@ void myVtkInteractorStyleImage3D::MakeAnnotation(vtkIdType annotation){
 	scalars->Modified();
 	mesh->Modified();
 	mapper->Update();
+	this->Interactor->Render();
 }
 
 void myVtkInteractorStyleImage3D::OnKeyUp() {}
@@ -338,7 +383,11 @@ void myVtkInteractorStyleImage3D::OnKeyDown() {
 		Interactor->GetRenderWindow()->SetFullScreen(0);
 	}
 	else if (key.compare("space") == 0){
-		this->RemoveLeaks();
+		cout << "change _canSegment To FALSE" << endl;
+		workerFunction f = &myVtkInteractorStyleImage3D::RemoveLeaks;
+		boost::thread workerThread(f, this);
+		this->Interactor->Render();
+		cout << "change _canSegment To TRUE" << endl;
 	}
 	else if (key.compare("o") == 0) {
 		cout << "Orientation key was pressed." << endl;
@@ -370,6 +419,7 @@ void myVtkInteractorStyleImage3D::OnKeyDown() {
 		}
 		else{
 			this->EndRotate();
+			this->Interactor->CreateRepeatingTimer(UPDATE_SLICE_TIMER);
 			if (this->Interactor)
 			{
 				this->ReleaseFocus();
@@ -384,10 +434,16 @@ void myVtkInteractorStyleImage3D::OnKeyDown() {
 		this->LoadFromFile();
 	}
 	else if (key.compare("f") == 0) {
-		this->MakeAnnotation(2);
+		//leak
+		this->MakeAnnotation(3);
 	}
 	else if (key.compare("b") == 0) {
-		this->MakeAnnotation(3);
+		//correct
+		this->MakeAnnotation(2);
+	}
+	else if (key.compare("g") == 0) {
+		// Interior miss.
+		this->MakeAnnotation(4);
 	}
 	else if (key.compare("v") == 0) {
 		//this->UpdateContext();

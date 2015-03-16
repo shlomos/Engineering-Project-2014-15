@@ -12,6 +12,7 @@
 #include <itkRelabelComponentImageFilter.h>
 #include <itkBinaryThresholdImageFilter.h>
 #include <itkVTKImageImport.h>
+#include <itkVTKImageToImageFilter.h>
 
 #include <vtkSmartPointer.h>
 #include <vtkImageData.h>
@@ -35,6 +36,9 @@
 #include <vtkTransformPolyDataFilter.h>
 #include <vtkImageReader.h>
 #include <itkImage.h>
+#include <itkBinaryFillholeImageFilter.h>
+#include <itkLabelShapeKeepNObjectsImageFilter.h>
+#include <itkRescaleIntensityImageFilter.h>
 
 #include <Eigen/Sparse>
 #include <unsupported/Eigen/UmfPackSupport>
@@ -208,9 +212,13 @@ public:
 		typedef typename itk::ImageRegionIteratorWithIndex<ImageType> IteratorType;
 		IteratorType outIt(outputImage, outputImage->GetLargestPossibleRegion());
 		IteratorType inIt(image, image->GetLargestPossibleRegion());
-
+		int i = -1;
 		for (inIt.GoToBegin(), outIt.GoToBegin(); !outIt.IsAtEnd(); ++outIt, ++inIt)
 		{
+			i++;
+			if (i % 50000 == 0) {
+				cout << "debug_achia, iteration: " << i << endl;
+			}
 			typename ImageType::PointType imagePoint;
 			outputImage->TransformIndexToPhysicalPoint(outIt.GetIndex(), imagePoint);
 			double testPoint[3] = { imagePoint[0], imagePoint[1], imagePoint[2] };
@@ -261,7 +269,7 @@ public:
 
 		return outputImage;
 	}
-
+	typedef unsigned short PixelType;
 	template<class ImageType>
 	typename ImageType::Pointer correctImage(typename ImageType::Pointer leakyImage, typename ImageType::Pointer seedImage, typename ImageType::Pointer contourImage)
 	{
@@ -286,39 +294,17 @@ public:
 		connector->SetFullyConnected(false);
 		connector->Update();
 
-		IteratorType seedIt(seedImage, seedImage->GetLargestPossibleRegion());
-		IteratorType connectIt(connector->GetOutput(), connector->GetOutput()->GetLargestPossibleRegion());
+		std::cout << "Number of objects: " << connector->GetObjectCount() << std::endl;
 
-		int label;
-		for (seedIt.GoToBegin(), connectIt.GoToBegin(); !seedIt.IsAtEnd(); ++seedIt, ++connectIt)
-		{
-			if (seedIt.Value() == CORRECT_SEED && connectIt.Value() != 0)
-			{
-				label = connectIt.Value();
-			}
-		}
+		typedef itk::LabelShapeKeepNObjectsImageFilter< ImageType > LabelShapeKeepNObjectsImageFilterType;
+		LabelShapeKeepNObjectsImageFilterType::Pointer labelShapeKeepNObjectsImageFilter = LabelShapeKeepNObjectsImageFilterType::New();
+		labelShapeKeepNObjectsImageFilter->SetInput(connector->GetOutput());
+		labelShapeKeepNObjectsImageFilter->SetBackgroundValue(0);
+		labelShapeKeepNObjectsImageFilter->SetNumberOfObjects(1);
+		labelShapeKeepNObjectsImageFilter->SetAttribute(LabelShapeKeepNObjectsImageFilterType::LabelObjectType::NUMBER_OF_PIXELS);
+		labelShapeKeepNObjectsImageFilter->Update();
 
-
-		typedef typename itk::BinaryThresholdImageFilter<ImageType, ImageType> ThresholderType;
-		typename ThresholderType::Pointer thresholder = ThresholderType::New();
-		thresholder->SetInput(connector->GetOutput());
-		thresholder->SetLowerThreshold(label);
-		thresholder->SetUpperThreshold(label);
-		thresholder->SetInsideValue(1);
-		thresholder->SetOutsideValue(0);
-		thresholder->Update();
-		typename ImageType::Pointer correctedImage = thresholder->GetOutput();
-
-		IteratorType correctedIt(correctedImage, correctedImage->GetLargestPossibleRegion());
-		for (contourIt.GoToBegin(), correctedIt.GoToBegin(); !contourIt.IsAtEnd(); ++contourIt, ++correctedIt)
-		{
-			if (contourIt.Value() == 1)
-			{
-				correctedIt.Set(1);
-			}
-		}
-
-		return correctedImage;
+		return labelShapeKeepNObjectsImageFilter->GetOutput();
 	}
 
 };

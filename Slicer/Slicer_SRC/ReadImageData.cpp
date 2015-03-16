@@ -36,6 +36,7 @@
 #include <vtkImageMapToColors.h>
 #include <vtkActor2D.h>
 #include <vtkTextProperty.h>
+#include <vtkUnsignedShortArray.h>
 
 
 vtkSmartPointer<vtkActor> createCrosshair(double *size){
@@ -133,7 +134,7 @@ int main(int argc, char* argv[])
 	vtkSmartPointer<vtkIntArray> selection_colors =
 		vtkSmartPointer<vtkIntArray>::New();
 	//selection_colors->SetNumberOfComponents(1);//4
-	selection->AllocateScalars(VTK_INT, 1);
+	selection->AllocateScalars(VTK_UNSIGNED_SHORT, 1);
 	cout << selection->GetNumberOfCells() << endl;
 	// Add the colors we created to the colors array	
 	selection_colors->SetNumberOfTuples(selection->GetNumberOfPoints());
@@ -162,7 +163,7 @@ int main(int argc, char* argv[])
 
 
 	//intiaite the points to be non-active
-	vtkIntArray* point = (vtkIntArray*)selection->GetPointData()->GetScalars();
+	vtkUnsignedShortArray* point = (vtkUnsignedShortArray*)selection->GetPointData()->GetScalars();
 	for (int i = 0; i < selection->GetNumberOfPoints(); i++){
 		point->SetValue(i, NOT_ACTIVE);
 	}

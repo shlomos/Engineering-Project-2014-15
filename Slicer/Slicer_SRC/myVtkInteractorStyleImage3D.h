@@ -37,6 +37,8 @@
 #include <vtkImageMapper3D.h>
 #include <vtkExtractVOI.h>
 #include <vtkStructuredPointsWriter.h>
+#include <vtkPolyDataToImageStencil.h>
+#include <vtkImageStencil.h>
 #include <vtkCellPicker.h>
 #include <vtkPointPicker.h>
 #include <vtkImageMapToColors.h>
@@ -46,7 +48,7 @@
 #include <sstream>
 #include "LeapAbstractionLayer.h"
 #include "MarchingCubes.h"
-
+#include <vtkImageToStructuredPoints.h>
 #include <boost/thread.hpp>
 
 
@@ -88,11 +90,13 @@ protected:
 	bool _rotLock;
 	bool _hfMode;
 	vtkIdType _currSource;
+	vtkStructuredPoints* _selection;
+	boost::mutex _canSegment_mutex;
 
 public:
 	myVtkInteractorStyleImage3D();
 	void SetStatusMapper(vtkTextMapper* statusMapper);
-	void Initialize(std::string outputName);
+	void Initialize(std::string outputName, vtkStructuredPoints* _selection);
 	void RemoveLeaks();
 
 protected:

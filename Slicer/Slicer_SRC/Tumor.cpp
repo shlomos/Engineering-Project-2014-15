@@ -18,26 +18,26 @@ Tumor::Tumor(Tumor::Point3D limits)
 void Tumor::addPoint(Tumor::Point3D point, Tumor::Point3D limits){
 
 	// awsome!
-	int map_key = (point[0] +2) + 1000 * (point[1] +2) + 1000000 * (point[2] +2);
+	int map_key = (point[0] + 2) + 1000 * (point[1] + 2) + 1000000 * (point[2] + 2);
 	//cout << "map_key :" << map_key << endl;
 	/*cout << "point[0]" << point[0];
 	cout << " point[1] " << point[1];
 	cout << " point[2] " << point[2] << endl;*/
 	this->points.insert(std::pair<int, Tumor::Point3D>(map_key, point));
 	this->numSeeds++;
-	
+
 	//update active points' list
 	if (point.point_type != NOT_ACTIVE) {
 		this->active_points.insert(std::pair<int, Tumor::Point3D>(map_key, point));
 	}
 
-	if (point.point_type != FOREGROUND) { 
-		return; 
+	if (point.point_type != FOREGROUND) {
+		return;
 	}
 	//updating bounding box
-	this->bBox.max_x = max(this->bBox.max_x, min(limits[0],point[0] + BB_SPACE_XY));
+	this->bBox.max_x = max(this->bBox.max_x, min(limits[0], point[0] + BB_SPACE_XY));
 	//cout << "this->bBox.min_x" << this->bBox.min_x << endl;
-	this->bBox.min_x = min(this->bBox.min_x, max(0,point[0] - BB_SPACE_XY));
+	this->bBox.min_x = min(this->bBox.min_x, max(0, point[0] - BB_SPACE_XY));
 	//cout << "this->bBox.min_x" << this->bBox.min_x << endl;
 
 	this->bBox.max_y = max(this->bBox.max_y, min(limits[1], point[1] + BB_SPACE_XY));
@@ -80,24 +80,24 @@ bool Tumor::isInTumor(Tumor::Point3D point){
 
 int Tumor::getBBoxSize() {
 	return (std::abs(this->bBox.max_x - this->bBox.min_x))*
-		   (std::abs(this->bBox.max_y - this->bBox.min_y))*
-		   (std::abs(this->bBox.max_z - this->bBox.min_z));
+		(std::abs(this->bBox.max_y - this->bBox.min_y))*
+		(std::abs(this->bBox.max_z - this->bBox.min_z));
 }
 
 // should return 6/18/26 neighbors as a vector<Tumor::Point3D>
 void Tumor::getNeighbors(Tumor::Point3D point, int* neighbors) {
-	int x = point[0] +2;
-	int y = point[1] +2;
-	int z = point[2] +2;
+	int x = point[0] + 2;
+	int y = point[1] + 2;
+	int z = point[2] + 2;
 
-	neighbors[0] = (x-1) + 1000 * y + 1000000 * z;
-	neighbors[1] = (x+1) + 1000 * y + 1000000 * z;
-	neighbors[2] = x + 1000 * (y+1) + 1000000 * z;
-	neighbors[3] = x + 1000 * (y-1) + 1000000 * z;
-	neighbors[4] = x + 1000 * y + 1000000 * (z-1);
-	neighbors[5] = x + 1000 * y + 1000000 * (z+1);
+	neighbors[0] = (x - 1) + 1000 * y + 1000000 * z;
+	neighbors[1] = (x + 1) + 1000 * y + 1000000 * z;
+	neighbors[2] = x + 1000 * (y + 1) + 1000000 * z;
+	neighbors[3] = x + 1000 * (y - 1) + 1000000 * z;
+	neighbors[4] = x + 1000 * y + 1000000 * (z - 1);
+	neighbors[5] = x + 1000 * y + 1000000 * (z + 1);
 
-	
+
 	/*cout << "neighbors[0]" << neighbors[0] << endl;
 	cout << "neighbors[1]" << neighbors[1] << endl;
 	cout << "neighbors[2]" << neighbors[2] << endl;
@@ -140,7 +140,7 @@ void Tumor::getNeighbors(Tumor::Point3D point, int* neighbors) {
 
 
 
-	
+
 }
 //int size_x = this->bBox.max_x - this->bBox.min_x;
 //int size_y = this->bBox.max_y - this->bBox.min_y;

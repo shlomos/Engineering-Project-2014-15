@@ -66,9 +66,9 @@ public:
 		int nil = NULL;
 		
 		int point_type;
-		int prev_point_type;
+		int prev_point_type=0;
 		float strength;
-		float prev_strength;
+		float prev_strength=0;
 		int color;
 		
 		int& operator[](int q) { switch (q){ case 0: return x; case 1: return y; case 2: return z; default: return nil; } }

@@ -30,6 +30,7 @@
 #include "myVtkInteractorStyleImage3D.h"
 #include <vtkDijkstraGraphGeodesicPath.h>
 #include "meshLeaksCorrection.h"
+#include <vtkUnsignedShortArray.h>
 
 
 /** This class is reponsible for creating the mesh using MarchingCubes algorithm*/

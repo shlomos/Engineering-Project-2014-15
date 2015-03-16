@@ -16,7 +16,7 @@ void GrowCut::init_tumors() {
 		<< extent[3] << ":"
 		<< extent[5] << endl;
 	vtkPointData* pointsData = _segmentation->GetPointData();
-	vtkIntArray* seg_scalars = (vtkIntArray*)pointsData->GetScalars();
+	vtkUnsignedShortArray* seg_scalars = (vtkUnsignedShortArray*)pointsData->GetScalars();
 
 	vtkPointData* CT_pointsData = _CT_image->GetPointData();
 	vtkIntArray* ct_scalars = (vtkIntArray*)CT_pointsData->GetScalars();
@@ -59,12 +59,16 @@ void GrowCut::init_tumors() {
 				min_color = min(min_color, ct_color);
 				
 				// add all the points in the bounding box to the tumor
-				Tumor::Point3D point = { i, j, k, seg_scalars->GetValue(current_point), 1.0, ct_color};
+				Tumor::Point3D point = { i, j, k, seg_scalars->GetValue(current_point), 1.0f, ct_color};
+				//cout << "D: " << seg_scalars->GetValue(current_point) << endl;
 				if (point.point_type == NOT_ACTIVE){
-					point.strength = 0.0;
-					point.prev_strength = 0.0;
+					//cout << "DEBUG: 22" << endl;
+					
+					point.strength = 0.0f;
+					point.prev_strength = 0.0f;
 				}
 				else{
+					//cout << "DEBUG: 11" << endl;
 					counter++;
 				}
 				createdNewTumor = AddPointToTumor(point);
@@ -127,16 +131,15 @@ vtkStructuredPoints* GrowCut::PerformSegmentation(){
 	// perform segmentation for each tumor
 	cout << "this->_tumors.size(): " << this->_tumors.size() << endl;
 	vtkPointData* pd = this->_segmentation->GetPointData();
-	vtkIntArray* scalars = (vtkIntArray*)pd->GetScalars();
+	vtkUnsignedShortArray* scalars = (vtkUnsignedShortArray*)pd->GetScalars();
 	int counter = 0;
 	for (int i = 0; i < this->_tumors.size(); i++){
 		cout << "tumor: " << i << endl;
 		//perform T iterations:
 		for (int t = 0; t < NUM_OF_GROW_ITERATIONS; t++){
 			points = this->_tumors.at(i).getPoints();
-			cout << "iteration: " << t << endl;
+			//cout << "iteration: " << endl;
 			
-
 			for (std::map<int, Tumor::Point3D>::iterator it = this->_tumors.at(i).active_points.begin()/*points->begin()*/; it != this->_tumors.at(i).active_points.end()/*points->end()*/; ++it) {
 				Tumor::Point3D curr_point = it->second;
 				this->_tumors.at(i).getNeighbors(curr_point, neighbors);
@@ -154,7 +157,10 @@ vtkStructuredPoints* GrowCut::PerformSegmentation(){
 
 					//cout << np.color << ":" << curr_point.color << ":" << g_function(np.color, curr_point.color)*np.prev_strength << "vs" << curr_point.prev_strength << endl;
 					float g_value = g_function(neighbor->second.color, curr_point.color)*curr_point.prev_strength;
+					//cout << "g_value " << g_value << endl;
+					//cout << "neighbor->second.prev_strength " << neighbor->second.prev_strength  << endl;
 					if (g_value > neighbor->second.prev_strength){
+						//cout << "DEBUG" << endl;
 						neighbor->second.point_type = curr_point.prev_point_type;
 						neighbor->second.strength = g_value;
 						if (this->_tumors.at(i).active_points.find(key) != this->_tumors.at(i).active_points.end()) {
@@ -201,7 +207,7 @@ vtkStructuredPoints* GrowCut::PerformSegmentation(){
 		//	scalars->SetValue(point_id, it->second.point_type);
 		//}
 		cout << "points->size()" << points->size() << endl;
-		cout << "in tumor there are " << this->_tumors.at(i).numSeeds << " points!" << endl;
+		cout << "in tumor there are " << this->_tumors.at(i).numSeeds << " seeds!" << endl;
 		cout << "this->_tumors.at(i).getBBoxSize(): " << this->_tumors.at(i).getBBoxSize() << endl;
 		cout << "num of segmented is: " << counter << endl;
 		cout << "" << endl; 

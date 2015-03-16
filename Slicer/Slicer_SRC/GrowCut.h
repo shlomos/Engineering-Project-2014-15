@@ -52,6 +52,7 @@
 #include <map>
 #include "graph.h"
 #include "Tumor.h"
+#include <vtkUnsignedShortArray.h>
 
 class GrowCut {
 public:

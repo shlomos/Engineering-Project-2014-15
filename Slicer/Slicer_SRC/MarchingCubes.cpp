@@ -39,12 +39,13 @@ MarchingCubes::MarchingCubes(vtkStructuredPoints* selection) {
 	_renderWindow->SetInteractor(_interactor);
 	
 	vtkSmartPointer<vtkLookupTable> lut = vtkSmartPointer<vtkLookupTable>::New();
-	lut->SetNumberOfTableValues(4);
-	lut->SetRange(0, 3);
+	lut->SetNumberOfTableValues(5);
+	lut->SetRange(0, 4);
 	lut->SetTableValue(0, 0.9, 0.9, 0.9, 1.0);
 	lut->SetTableValue(1, 0.9, 0.9, 0.9, 1.0);
 	lut->SetTableValue(2, 0, 1, 0, 1.0);
 	lut->SetTableValue(3, 1, 0, 0, 1.0);
+	lut->SetTableValue(4, 0, 0, 1, 1.0);
 	lut->Build();
 	vtkPolyData* mesh = _surface->GetOutput();
 
@@ -66,16 +67,17 @@ MarchingCubes::MarchingCubes(vtkStructuredPoints* selection) {
 
 	//end close holes
 
-	_mapper->SetScalarRange(0,3);
+	_mapper->SetScalarRange(0,4);
 	_mapper->SetLookupTable(lut);
 	//cout << "Number of points is: " << mesh->GetNumberOfPoints() << endl;
-	vtkSmartPointer<vtkIntArray> mesh_colors =
-		vtkSmartPointer<vtkIntArray>::New();
+	vtkSmartPointer<vtkUnsignedShortArray> mesh_colors =
+		vtkSmartPointer<vtkUnsignedShortArray>::New();
 	// Add the colors we created to the colors array	
 	//mesh_colors->SetNumberOfValues(normals->GetOutput()->GetNumberOfPoints());
 	mesh_colors->SetNumberOfValues(mesh->GetNumberOfPoints());
 	for (int i = 0; i < mesh->GetNumberOfPoints(); i++){
-		mesh_colors->SetValue(i, 2);
+		//in mesh, neutral is 1.
+		mesh_colors->SetValue(i, NOT_ACTIVE);
 	}
 	mesh_colors->SetName("mesh_colors");
 	mesh->GetPointData()->SetScalars(mesh_colors);
@@ -86,18 +88,24 @@ MarchingCubes::MarchingCubes(vtkStructuredPoints* selection) {
 	//normals->GetOutput()->GetPointData()->
 	//	SetScalars(mesh_colors);
 	//_mapper->SetInputData(normals->GetOutput());
+	vtkSmartPointer<vtkSmoothPolyDataFilter> smoother = vtkSmoothPolyDataFilter::New();
+	smoother->SetInputData(mesh);
+	smoother->SetNumberOfIterations(MESH_SMOOTH_ITERATIONS);
+	smoother->Update();
+	mesh = smoother->GetOutput();
 	_mapper->SetInputData(mesh);
 	//_mapper->SetScalarModeToUsePointData();
 	_mapper->Update();
 
 	_actor->SetMapper(_mapper);
 	_renderWindow->AddRenderer(_renderer);
+	_renderWindow->SetSize(1280, 720);
 	myInteractorStyle->SetDefaultRenderer(_renderer);
 	myInteractorStyle->Modified();
 	_renderer->AddActor(_actor);
 	_renderWindow->SetCurrentCursor(VTK_CURSOR_CROSSHAIR);
 	_renderer->ResetCamera();
 	_renderWindow->Render();
-	myInteractorStyle->Initialize("Output.obj");
+	myInteractorStyle->Initialize("Output.obj", this->_selection);
 	_interactor->Start();
 }

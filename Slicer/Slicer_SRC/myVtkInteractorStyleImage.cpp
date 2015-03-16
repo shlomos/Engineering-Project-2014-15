@@ -30,6 +30,7 @@
 #include <vtkCamera.h>
 #include <sstream>
 #include <vtkDelaunay3D.h>
+#include <vtkUnsignedShortArray.h>
 
 
 myVtkInteractorStyleImage::myVtkInteractorStyleImage()
@@ -37,7 +38,7 @@ myVtkInteractorStyleImage::myVtkInteractorStyleImage()
 	leapCallback = vtkSmartPointer<vtkCallbackCommand>::New();
 	leapCallback->SetCallback(myVtkInteractorStyleImage::ProcessLeapEvents);
 	//_graph_cut = new ImageGraphCut();
-	_selection_scalars = vtkSmartPointer<vtkIntArray>::New();
+	_selection_scalars = vtkSmartPointer<vtkUnsignedShortArray>::New();
 	this->GrabFocus(this->EventCallbackCommand);
 }
 void myVtkInteractorStyleImage::SetImageViewer(vtkImageViewer2* imageViewer, std::string outputName, vtkSmartPointer<vtkImageActor> selection_actor, vtkStructuredPoints* CT_image) {
@@ -59,6 +60,10 @@ void myVtkInteractorStyleImage::SetImageViewer(vtkImageViewer2* imageViewer, std
 	_grow_cut = new GrowCut();
 	//cout << "Slicer: Min = " << _MinSlice << ", Max = " << _MaxSlice << ", Orientation: " << _orientation << std::endl;
 	_selection_scalars->SetNumberOfValues(((vtkStructuredPoints*)(((vtkImageMapToColors*)_selection_actor->GetMapper()->GetInputAlgorithm()))->GetInput())->GetNumberOfPoints());
+	
+	for (int i = 0; i < _selection_scalars->GetNumberOfTuples(); i++){
+		_selection_scalars->SetValue(i, 0);
+	}
 }
 void myVtkInteractorStyleImage::SetStatusMapper(vtkTextMapper* statusMapper) {
 	_StatusMapper = statusMapper;
@@ -129,7 +134,7 @@ void myVtkInteractorStyleImage::LoadFromFile(){
 	cout << "Reading, please wait..." << endl;
 	sLoader->Update();
 	vtkImageMapToColors* mapper = (vtkImageMapToColors*)_selection_actor->GetMapper()->GetInputAlgorithm();
-	vtkIntArray* temp = (vtkIntArray*)(sLoader->GetOutput()->GetPointData()->GetScalars());
+	vtkUnsignedShortArray* temp = (vtkUnsignedShortArray*)(sLoader->GetOutput()->GetPointData()->GetScalars());
 	this->_selection_scalars->DeepCopy(temp);
 	((vtkStructuredPoints*)(mapper->GetInput()))->GetPointData()->SetScalars(this->_selection_scalars);
 	cout << "Updating view, just a little longer..." << endl;
@@ -141,7 +146,7 @@ void myVtkInteractorStyleImage::LoadFromFile(){
 void myVtkInteractorStyleImage::ResetAll(){
 	vtkStructuredPoints* selection = ((vtkStructuredPoints*)(((vtkImageMapToColors*)_selection_actor->GetMapper()->GetInputAlgorithm()))->GetInput());
 	vtkPointData* pointData = selection->GetPointData();
-	vtkIntArray* selection_scalars = (vtkIntArray*)pointData->GetScalars();
+	vtkUnsignedShortArray* selection_scalars = (vtkUnsignedShortArray*)pointData->GetScalars();
 	for (int i = 0; i < selection->GetNumberOfPoints(); i++){
 		selection_scalars->SetValue(i, NOT_ACTIVE);
 	}
@@ -171,8 +176,8 @@ double* myVtkInteractorStyleImage::redrawCrossHair() {
 		//TODO: need to fix the "+number" factor in every set of cross_y value!!
 	case SLICE_ORIENTATION_YZ:
 		cross_y = std::min(size[3], std::max(size[2] + SCALE_FACTOR*((_lal->getX() - LEAP_MIN_X) / LEAP_MAX_Y)*(size[3] - size[2]) - 20, size[2]));
-		cross_z = std::min(size[5], std::max(size[4] + SCALE_FACTOR*(_lal->getY() / LEAP_MAX_Y)*(size[5]-size[4]) - 20, size[4]));
-		
+		cross_z = std::min(size[5], std::max(size[4] + SCALE_FACTOR*(_lal->getY() / LEAP_MAX_Y)*(size[5] - size[4]) - 20, size[4]));
+
 		new_pts->InsertNextPoint(size[1], cross_y, size[4]); // vertical line
 		new_pts->InsertNextPoint(size[1], cross_y, size[5]); // vertical line
 		new_pts->InsertNextPoint(size[1], size[2], cross_z); // horizontal line
@@ -181,7 +186,7 @@ double* myVtkInteractorStyleImage::redrawCrossHair() {
 		temp = new double[3]{ cross_z, cross_y, size[1] };
 		break;
 	case SLICE_ORIENTATION_XZ:
-		
+
 		cross_z = std::min(size[5], std::max(size[4] + SCALE_FACTOR*(_lal->getY() / LEAP_MAX_Y)*(abs(size[5] - size[4])) - 20, size[4]));
 		cross_x = std::min(size[1], std::max(size[0] - SCALE_FACTOR*((_lal->getX() - LEAP_MIN_X) / LEAP_MAX_Y)*(abs(size[1]) - abs(size[0])) - 20, size[0]));
 
@@ -194,8 +199,8 @@ double* myVtkInteractorStyleImage::redrawCrossHair() {
 		break;
 	case SLICE_ORIENTATION_XY:
 		cross_x = std::max(size[0], std::min(SCALE_FACTOR*_lal->getX(), size[1]));
-		cross_y = std::min(size[3], std::max(size[2] + SCALE_FACTOR*((_lal->getY()/ LEAP_MAX_Y)*(size[3] - size[2])) - 20, size[2]));
-		
+		cross_y = std::min(size[3], std::max(size[2] + SCALE_FACTOR*((_lal->getY() / LEAP_MAX_Y)*(size[3] - size[2])) - 20, size[2]));
+
 		new_pts->InsertNextPoint(size[0], cross_y, size[5]);
 		new_pts->InsertNextPoint(size[1], cross_y, size[5]);
 		new_pts->InsertNextPoint(cross_x, size[2], size[5]);
@@ -228,9 +233,9 @@ void myVtkInteractorStyleImage::translateToStructuredPoints(vtkUnstructuredGrid*
 	vtkPoints* compoPoints = component->GetPoints();
 
 	vtkPointData* pointData = temp->GetPointData();
-	vtkIntArray* selection_scalars = (vtkIntArray*)pointData->GetScalars();
+	vtkUnsignedShortArray* selection_scalars = (vtkUnsignedShortArray*)pointData->GetScalars();
 	vtkPointData* cPointData = component->GetPointData();
-	vtkIntArray* c_selection_scalars = (vtkIntArray*)cPointData->GetScalars();
+	vtkUnsignedShortArray* c_selection_scalars = (vtkUnsignedShortArray*)cPointData->GetScalars();
 
 	for (int i = 0; i < compoPoints->GetNumberOfPoints(); i++){
 		if (c_selection_scalars->GetValue(i) != c_selection_scalars->GetValue(max(0, i - 1))){
@@ -247,28 +252,28 @@ void myVtkInteractorStyleImage::doSegment() {
 	boost::mutex::scoped_lock scoped_lock(_canSegment_mutex);
 
 	vtkSmartPointer<vtkStructuredPoints> selection_structured_points = (vtkStructuredPoints*)((vtkImageMapToColors*)_selection_actor->GetMapper()->GetInputAlgorithm())->GetInput();
-	
+
 	vtkPointData* cellData1 = selection_structured_points->GetPointData();
-	vtkSmartPointer<vtkIntArray> sel_scalars_copy = vtkSmartPointer<vtkIntArray>::New();
+	vtkSmartPointer<vtkUnsignedShortArray> sel_scalars_copy = vtkSmartPointer<vtkUnsignedShortArray>::New();
 	sel_scalars_copy->DeepCopy(this->_selection_scalars);
 	cellData1->SetScalars(sel_scalars_copy);
 
 	cellData1->GetScalars()->Modified();
 	cellData1->Modified();
 	selection_structured_points->Modified();
-	
+
 	//vtkSmartPointer<vtkStructuredPoints> selection_structured_points_copy = vtkSmartPointer<vtkStructuredPoints>::New();
 	//vtkStructuredPoints* output = vtkSmartPointer<vtkStructuredPoints>::New();
-	
+
 	// perform deep copy, in order to seperate between the segmentation given by the user, and the one computed by the machine
 	//selection_structured_points_copy->DeepCopy(selection_structured_points);
-	
+
 	//_graph_cut->SetImage(selection_structured_points_copy, _CT_image);
 	//output = _graph_cut->PerformSegmentation();
 
 	_grow_cut->SetImage(_CT_image, selection_structured_points);
 	_grow_cut->PerformSegmentation();
-	
+
 	//selection_structured_points = output;
 	//vtkSmartPointer<vtkImageOpenClose3D> openClose =
 	//	vtkSmartPointer<vtkImageOpenClose3D>::New();
@@ -278,7 +283,7 @@ void myVtkInteractorStyleImage::doSegment() {
 	//openClose->SetKernelSize(XY_OPENCLOSE, XY_OPENCLOSE, Z_OPENCLOSE);
 	//openClose->ReleaseDataFlagOff();
 	//openClose->Update();
-	
+
 	//((vtkImageMapToColors*)_selection_actor->GetMapper()->GetInputAlgorithm())->SetInputData(selection_structured_points);
 	((vtkImageMapToColors*)_selection_actor->GetMapper()->GetInputAlgorithm())->SetInputData(selection_structured_points);
 }
@@ -341,7 +346,7 @@ void myVtkInteractorStyleImage::OnKeyDown() {
 		this->LoadFromFile();
 	}
 	else if (key.compare("space") == 0) {
-		
+
 		cout << "change _canSegment To FALSE" << endl;
 		workerFunction f = &myVtkInteractorStyleImage::doSegment;
 		boost::thread workerThread(f, this);
@@ -350,7 +355,7 @@ void myVtkInteractorStyleImage::OnKeyDown() {
 		this->_selection_actor->GetMapper()->Update();
 		this->_ImageViewer->Render();
 		cout << "change _canSegment To TRUE" << endl;
-		
+
 	}
 	else if (key.compare("m") == 0) {
 		this->marchingCubes();
@@ -493,13 +498,12 @@ void myVtkInteractorStyleImage::ProcessLeapEvents(vtkObject* object, unsigned lo
 	}
 
 	int *selExt = selection_structured_points->GetExtent();
-	
+
 
 	if (intStyle->Interactor->GetControlKey() || (intStyle->_hfMode && intStyle->_lal->getPainting())) {
 
 		vtkPointData* cellData = selection_structured_points->GetPointData();
-		vtkSmartPointer<vtkIntArray> selection_scalars = vtkSmartPointer<vtkIntArray>::New();
-		selection_scalars = intStyle->_selection_scalars;
+		vtkUnsignedShortArray* selection_scalars = intStyle->_selection_scalars;
 		//selection_scalars->SetNumberOfValues(selection_structured_points->GetNumberOfPoints());
 
 		double x[3];
@@ -586,7 +590,7 @@ void myVtkInteractorStyleImage::ProcessLeapEvents(vtkObject* object, unsigned lo
 
 		//Update the underlying data object.
 		cellData->GetScalars()->Modified();
-		
+
 		////todo: remove the following lines if possible!
 		cellData->Modified();
 		selection_structured_points->Modified();
@@ -605,8 +609,7 @@ void myVtkInteractorStyleImage::ProcessLeapEvents(vtkObject* object, unsigned lo
 	else if (intStyle->Interactor->GetAltKey()){
 
 		vtkPointData* cellData = selection_structured_points->GetPointData();
-		vtkSmartPointer<vtkIntArray> selection_scalars = vtkSmartPointer<vtkIntArray>::New();
-		selection_scalars = intStyle->_selection_scalars; 
+		vtkUnsignedShortArray* selection_scalars = intStyle->_selection_scalars;
 		//selection_scalars->SetNumberOfValues(selection_structured_points->GetNumberOfPoints());
 		double x[3] = { cross_1, cross_2, cross_3 };
 		int ijk[3];
@@ -632,7 +635,7 @@ void myVtkInteractorStyleImage::ProcessLeapEvents(vtkObject* object, unsigned lo
 
 		//Update the underlying data object.
 		cellData->GetScalars()->Modified();
-		
+
 		////todo: remove the following lines if possible!
 		cellData->Modified();
 		selection_structured_points->Modified();
@@ -664,7 +667,7 @@ void myVtkInteractorStyleImage::ProcessLeapEvents(vtkObject* object, unsigned lo
 	cross_actor->GetMapper()->Update();
 	intStyle->_selection_actor->GetMapper()->Update();
 	intStyle->_ImageViewer->Render();
-	
+
 }
 
 myVtkInteractorStyleImage::~myVtkInteractorStyleImage(){

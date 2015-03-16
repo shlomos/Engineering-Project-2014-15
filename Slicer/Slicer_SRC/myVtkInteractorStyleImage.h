@@ -82,7 +82,7 @@ public:
 	vtkTypeMacro(myVtkInteractorStyleImage, vtkInteractorStyleImage);
 	vtkSmartPointer<vtkCallbackCommand> leapCallback;
 	//float _x_position, _y_position, _z_position; // TODO: create getters and setters and move to protected.
-	vtkSmartPointer<vtkIntArray> _selection_scalars;
+	vtkSmartPointer<vtkUnsignedShortArray> _selection_scalars;
 
 protected:
 	vtkSmartPointer<vtkImageViewer2> _ImageViewer;
