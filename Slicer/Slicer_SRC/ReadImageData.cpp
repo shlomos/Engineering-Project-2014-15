@@ -268,7 +268,7 @@ int main(int argc, char* argv[])
 	viewer->GetImageActor()->GetDisplayExtent(displayExtent);
 	selectionA->SetDisplayExtent(displayExtent);
 	viewer->GetRenderWindow()->SetPosition(0, 0);
-	viewer->GetRenderWindow()->SetSize(800, 850);
+	viewer->GetRenderWindow()->SetSize(viewer->GetRenderWindow()->GetScreenSize()[0] / 2, viewer->GetRenderWindow()->GetScreenSize()[1]-50);
 	viewer->GetRenderWindow()->SetWindowName("Slicer");
 
 	// Have the sample listener receive events from the controller

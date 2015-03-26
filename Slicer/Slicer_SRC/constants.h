@@ -33,7 +33,7 @@
 #define SMOOTHING_FACTOR_Z	50.0
 #define NUM_OF_GROW_ITERATIONS 50
 // 
-#define ISO_VALUE 0.1
+#define ISO_VALUE 0.5
 
 #define NOWINDOW	0
 #define WINDOW25D	1

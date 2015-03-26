@@ -320,11 +320,13 @@ void myVtkInteractorStyleImage3D::GetPoked2DLocation(int ijk[3]){
 	picker->Pick(clickPos[0], clickPos[1], 0, this->GetDefaultRenderer());
 
 	double* pos = picker->GetPickPosition();
-	std::cout << "Pick position (world coordinates) is: "
-		<< pos[0] << " " << pos[1]
-		<< " " << pos[2] << std::endl;
+	vtkPolyDataMapper* mapper = (vtkPolyDataMapper*)(this->GetDefaultRenderer()->GetActors()->GetLastActor()->GetMapper());
+	vtkPolyData* mesh = mapper->GetInput();
+	vtkIdType pointId = mesh->FindPoint(pos);
+	double coords[3];
+	mesh->GetPoint(pointId,coords);
 	double pcoords[3];
-	this->_selection->ComputeStructuredCoordinates(pos, ijk, pcoords);
+	this->_selection->ComputeStructuredCoordinates(coords, ijk, pcoords);
 }
 
 void myVtkInteractorStyleImage3D::MakeAnnotation(vtkIdType annotation){
