@@ -60,10 +60,11 @@ void myVtkInteractorStyleImage::SetImageViewer(vtkImageViewer2* imageViewer, std
 	_grow_cut = new GrowCut();
 	//cout << "Slicer: Min = " << _MinSlice << ", Max = " << _MaxSlice << ", Orientation: " << _orientation << std::endl;
 	_selection_scalars->SetNumberOfValues(((vtkStructuredPoints*)(((vtkImageMapToColors*)_selection_actor->GetMapper()->GetInputAlgorithm()))->GetInput())->GetNumberOfPoints());
-	
+
 	for (int i = 0; i < _selection_scalars->GetNumberOfTuples(); i++){
 		_selection_scalars->SetValue(i, 0);
 	}
+
 }
 void myVtkInteractorStyleImage::SetStatusMapper(vtkTextMapper* statusMapper) {
 	_StatusMapper = statusMapper;
@@ -153,6 +154,28 @@ void myVtkInteractorStyleImage::ResetAll(){
 	//todo: fix this!
 	//this->_graph_cut->Clean();
 	selection_scalars->Modified();
+}
+
+void myVtkInteractorStyleImage::SetCrossHair(int cross_x, int cross_y){
+	vtkActor* cross_actor = _ImageViewer->GetRenderer()->GetActors()->GetLastActor();
+	vtkSmartPointer<vtkPolyData> pd = (vtkPolyData *)((vtkPolyDataMapper*)(cross_actor->GetMapper())->GetInputAsDataSet());
+	vtkSmartPointer<vtkPoints> new_pts =
+		vtkSmartPointer<vtkPoints>::New();
+	double* size = ((vtkStructuredPoints*)(((vtkImageMapToColors*)_selection_actor->GetMapper()->GetInputAlgorithm()))->GetInput())->GetBounds();
+	new_pts->InsertNextPoint(size[0], cross_y, size[5]);
+	new_pts->InsertNextPoint(size[1], cross_y, size[5]);
+	new_pts->InsertNextPoint(cross_x - 142, size[2], size[5]);
+	new_pts->InsertNextPoint(cross_x - 142, size[3], size[5]);
+
+	cout << "cross_x: " << cross_x << "cross_y: " << cross_y << endl;
+	pd->SetPoints(new_pts);
+	cross_actor->SetOrigin(_selection_actor->GetOrigin());
+	cross_actor->SetScale(_selection_actor->GetScale());
+	cross_actor->SetPosition(_selection_actor->GetPosition());
+	int displayExtent[6];
+	_ImageViewer->GetImageActor()->GetDisplayExtent(displayExtent);
+	((vtkImageActor*)cross_actor)->SetDisplayExtent(displayExtent);
+	_selection_actor->SetDisplayExtent(displayExtent);
 }
 
 double* myVtkInteractorStyleImage::redrawCrossHair() {
@@ -306,6 +329,12 @@ void myVtkInteractorStyleImage::OnKeyDown() {
 	if (key.compare("Up") == 0) {
 		cout << "Up arrow key was pressed." << endl;
 		MoveSliceForward();
+	}
+	else if (key.compare("Right") == 0) {
+		cout << "right arrow key was pressed." << endl;
+		//set focus
+		bool t = SetForegroundWindow(FindWindow(NULL, "Mesh Viewer"));
+		cout << "t: " << t << endl;
 	}
 	else if (key.compare("Down") == 0) {
 		cout << "Down arrow key was pressed." << endl;
@@ -477,6 +506,37 @@ void myVtkInteractorStyleImage::ProcessLeapEvents(vtkObject* object, unsigned lo
 	vtkSmartPointer<vtkImageMapToColors> selection_mapper = (vtkImageMapToColors*)intStyle->_selection_actor->GetMapper()->GetInputAlgorithm();
 	vtkSmartPointer<vtkStructuredPoints> selection_structured_points = (vtkStructuredPoints *)selection_mapper->GetInput();
 
+
+	int ijk[3];
+	intStyle->_lal->getUpdate(ijk);
+	if (ijk[0] != -1){
+		cout << "Shift pressed" << endl;
+		intStyle->_ImageViewer->SetSliceOrientation(SLICE_ORIENTATION_XY);
+		intStyle->_ImageViewer->SetSlice(ijk[2]);
+		int displayExtent[6];
+		intStyle->_ImageViewer->GetImageActor()->GetDisplayExtent(displayExtent);
+		intStyle->_selection_actor->SetDisplayExtent(displayExtent);
+		intStyle->SetCrossHair(ijk[0], ijk[1]);
+		std::string msg = StatusMessage::Format(ijk[2], intStyle->_lal->getMaxSlice(), intStyle->_ImageViewer->GetSliceOrientation());
+		intStyle->_StatusMapper->SetInput(msg.c_str());
+		intStyle->_lal->RequestUpdate(-1, -1, -1);
+	}
+	// do noting if not in focus
+	HWND forground = GetForegroundWindow();
+	if (forground) {
+		char window_title[256];
+		GetWindowText(forground, window_title, 256);
+
+		if (strcmp("Slicer", window_title)) {
+			// render
+			cross_actor->GetMapper()->Update();
+			intStyle->_selection_actor->GetMapper()->Update();
+			intStyle->_ImageViewer->Render();
+			return;
+		}
+	}
+
+
 	double* size = selection_structured_points->GetBounds();
 	// changing the crosshair
 	vtkSmartPointer<vtkPoints> new_pts =
@@ -486,6 +546,7 @@ void myVtkInteractorStyleImage::ProcessLeapEvents(vtkObject* object, unsigned lo
 	double cross_2 = temp[1];
 	double cross_3 = temp[2];
 	delete temp;
+
 	// When SHIFT key is pressed, udpate slice
 	if (intStyle->Interactor->GetShiftKey() || (intStyle->_hfMode && !intStyle->_lal->getSliceLock())){
 		cout << "Shift pressed" << endl;

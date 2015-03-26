@@ -116,7 +116,7 @@ void myVtkInteractorStyleImage3D::RemoveLeaks(){
 	IteratorType gradIt(gradientFilter->GetOutput(), gradientFilter->GetOutput()->GetLargestPossibleRegion());
 	cout << "GradIt" << endl;
 	vtkPolyDataMapper* mapper = (vtkPolyDataMapper*)(this->GetDefaultRenderer()->GetActors()->GetLastActor()->GetMapper());
-	vtkSmartPointer<vtkPolyData> vtkSegImage = vtkSmartPointer<vtkPolyData>::New(); 
+	vtkSmartPointer<vtkPolyData> vtkSegImage = vtkSmartPointer<vtkPolyData>::New();
 	vtkSegImage->DeepCopy(mapper->GetInput());
 	vtkSegImage->GetPointData()->SetScalars(NULL);
 
@@ -189,7 +189,7 @@ void myVtkInteractorStyleImage3D::RemoveLeaks(){
 	cout << "bedug 1" << endl;
 	// selection is not NULL (checked...)
 	cout << "this->_selection->GetScalarType(): " << this->_selection->GetScalarType() << endl;
-	converter->SetInput(this->_selection); 
+	converter->SetInput(this->_selection);
 	cout << "deb 5" << endl;
 	converter->Update(); // 
 	cout << "bedug 2" << endl;
@@ -216,7 +216,7 @@ void myVtkInteractorStyleImage3D::RemoveLeaks(){
 		std::cerr << excp << std::endl;
 		exit(1);
 	}
-	
+
 
 
 	typedef itk::ImageToVTKImageFilter<SegImageType> SegInvConverterType;
@@ -225,11 +225,11 @@ void myVtkInteractorStyleImage3D::RemoveLeaks(){
 	correctionConverter->SetInput(outputImage);
 	correctionConverter->Update();
 	vtkSmartPointer<vtkImageData> vtkCorrectedImage = correctionConverter->GetOutput();
-	vtkSmartPointer<vtkImageToStructuredPoints> convertFilter =
-		vtkSmartPointer<vtkImageToStructuredPoints>::New();
+	/*vtkSmartPointer<vtkImageToStructuredPoints> convertFilter =
+	vtkSmartPointer<vtkImageToStructuredPoints>::New();
 	convertFilter->SetInputData(correctionConverter->GetOutput());
 	convertFilter->Update();
-	this->_selection->DeepCopy(convertFilter->GetOutput());
+	this->_selection->DeepCopy(convertFilter->GetOutput());*/
 
 
 	cout << "bedug 8" << endl;
@@ -295,13 +295,37 @@ void myVtkInteractorStyleImage3D::OnLeftButtonUp()
 }
 
 void myVtkInteractorStyleImage3D::OnTimer(){
-	// render
-	int * winSize = Interactor->GetRenderWindow()->GetSize();
-	Interactor->SetEventPosition((2 * _lal->getX() + winSize[0] / 2), (_lal->getY() / LEAP_MAX_Y)*winSize[1]);
-	Interactor->GetRenderWindow()->SetCursorPosition(Interactor->GetEventPosition()[0], Interactor->GetEventPosition()[1]);
-	vtkInteractorStyleJoystickCamera::OnTimer();
+
+	HWND forground = GetForegroundWindow();
+	if (forground) {
+		char window_title[256];
+		GetWindowText(forground, window_title, 256);
+
+		if (!strcmp("Mesh Viewer", window_title)) {
+			// render
+			int * winSize = Interactor->GetRenderWindow()->GetSize();
+			Interactor->SetEventPosition((2 * _lal->getX() + winSize[0] / 2), (_lal->getY() / LEAP_MAX_Y)*winSize[1]);
+			Interactor->GetRenderWindow()->SetCursorPosition(Interactor->GetEventPosition()[0], Interactor->GetEventPosition()[1]);
+		}
+		vtkInteractorStyleJoystickCamera::OnTimer();
+	}
 }
 
+void myVtkInteractorStyleImage3D::GetPoked2DLocation(int ijk[3]){
+	int* clickPos = this->GetInteractor()->GetEventPosition();
+
+	// Pick from this location.
+	vtkSmartPointer<vtkPropPicker> picker =
+		vtkSmartPointer<vtkPropPicker>::New();
+	picker->Pick(clickPos[0], clickPos[1], 0, this->GetDefaultRenderer());
+
+	double* pos = picker->GetPickPosition();
+	std::cout << "Pick position (world coordinates) is: "
+		<< pos[0] << " " << pos[1]
+		<< " " << pos[2] << std::endl;
+	double pcoords[3];
+	this->_selection->ComputeStructuredCoordinates(pos, ijk, pcoords);
+}
 
 void myVtkInteractorStyleImage3D::MakeAnnotation(vtkIdType annotation){
 	int* clickPos = this->GetInteractor()->GetEventPosition();
@@ -309,7 +333,7 @@ void myVtkInteractorStyleImage3D::MakeAnnotation(vtkIdType annotation){
 	// Pick from this location.
 	vtkSmartPointer<vtkPropPicker>  picker =
 		vtkSmartPointer<vtkPropPicker>::New();
-	picker->Pick(clickPos[0], clickPos[1], 0, this->GetDefaultRenderer());
+	picker->Pick(clickPos[0], clickPos[1], clickPos[2], this->GetDefaultRenderer());
 
 	double* pos = picker->GetPickPosition();
 	std::cout << "Pick position (world coordinates) is: "
@@ -364,11 +388,12 @@ void myVtkInteractorStyleImage3D::OnMouseMove(){
 }
 void myVtkInteractorStyleImage3D::OnKeyDown() {
 	std::string key = this->GetInteractor()->GetKeySym();
-	if (key.compare("Up") == 0) {
-		cout << "Up arrow key was pressed." << endl;
-	}
-	else if (key.compare("Down") == 0) {
-		cout << "Down arrow key was pressed." << endl;
+	if (key.compare("Left") == 0) {
+		cout << "Left arrow key was pressed." << endl;
+
+		//set focus
+		SetForegroundWindow(FindWindow(NULL, "Slicer"));
+
 	}
 	else if (key.compare("1") == 0) {
 		cout << "Draw size was changed to " << _drawSize - 1 << endl;
@@ -446,6 +471,9 @@ void myVtkInteractorStyleImage3D::OnKeyDown() {
 		this->MakeAnnotation(4);
 	}
 	else if (key.compare("v") == 0) {
+		int ijk[3];
+		this->GetPoked2DLocation(ijk);
+		_lal->RequestUpdate(ijk[0], ijk[1], ijk[2]);
 		//this->UpdateContext();
 	}
 	return;

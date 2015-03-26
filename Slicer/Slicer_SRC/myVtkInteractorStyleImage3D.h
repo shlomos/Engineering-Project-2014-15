@@ -63,10 +63,10 @@ public:
 			tmp << "Slice Number  " << slice + 1 << "/" << maxSlice + 1 << "\nOrientation " << "Sagittal";
 			break;
 		case SLICE_ORIENTATION_XZ:
-			tmp << "Slice Number  " << slice + 1 << "/" << maxSlice + 1 << "\nOrientation " << "Axial";
+			tmp << "Slice Number  " << slice + 1 << "/" << maxSlice + 1 << "\nOrientation " << "Coronal";
 			break;
 		case SLICE_ORIENTATION_XY:
-			tmp << "Slice Number  " << slice + 1 << "/" << maxSlice + 1 << "\nOrientation " << "Coronal";
+			tmp << "Slice Number  " << slice + 1 << "/" << maxSlice + 1 << "\nOrientation " << "Axial";
 			break;
 		}
 		return tmp.str();
@@ -105,6 +105,7 @@ protected:
 	void doSegment();
 	void ResetAll();
 	void MakeAnnotation(vtkIdType);
+	void GetPoked2DLocation(int[3]);
 	virtual void OnKeyDown();
 	virtual void OnLeftButtonDown();
 	virtual void OnRightButtonDown();

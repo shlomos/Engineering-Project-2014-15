@@ -3,6 +3,7 @@
 
 #include <string>
 #include <algorithm>
+#include "constants.h"
 
 class LeapAbstractionLayer{
 public:
@@ -14,10 +15,12 @@ public:
 	int getMaxSlice();
 	bool getPainting();
 	bool getSliceLock();
+	void getUpdate(int location[3]);
 	void setX(float x);
 	void setY(float y);
 	void setZ(float z);
 	void setSlice(int slice);
+	void RequestUpdate(int,int,int);
 	void setMaxSlice(int slice);
 	void setSliceLock(bool status);
 	void setPainting(bool status);
@@ -29,6 +32,7 @@ private:
 	int _slice;
 	int _maxSlice;
 	bool _isPainting;
+	int _update[3];
 	bool _sliceLock;
 	LeapAbstractionLayer();
 	LeapAbstractionLayer(LeapAbstractionLayer const&){};

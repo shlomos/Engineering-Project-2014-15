@@ -212,13 +212,8 @@ public:
 		typedef typename itk::ImageRegionIteratorWithIndex<ImageType> IteratorType;
 		IteratorType outIt(outputImage, outputImage->GetLargestPossibleRegion());
 		IteratorType inIt(image, image->GetLargestPossibleRegion());
-		int i = -1;
 		for (inIt.GoToBegin(), outIt.GoToBegin(); !outIt.IsAtEnd(); ++outIt, ++inIt)
 		{
-			i++;
-			if (i % 50000 == 0) {
-				cout << "debug_achia, iteration: " << i << endl;
-			}
 			typename ImageType::PointType imagePoint;
 			outputImage->TransformIndexToPhysicalPoint(outIt.GetIndex(), imagePoint);
 			double testPoint[3] = { imagePoint[0], imagePoint[1], imagePoint[2] };

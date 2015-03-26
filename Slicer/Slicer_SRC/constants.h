@@ -35,6 +35,10 @@
 // 
 #define ISO_VALUE 0.1
 
+#define NOWINDOW	0
+#define WINDOW25D	1
+#define WINDOW3D	2
+
 #define LEAP_MAX_Y 500
 #define LEAP_MIN_X -200
 

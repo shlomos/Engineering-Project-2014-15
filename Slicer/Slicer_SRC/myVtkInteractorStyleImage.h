@@ -47,6 +47,7 @@
 #include "GrowCut.h"
 #include "MarchingCubes.h"
 #include "LeapAbstractionLayer.h" 
+#include <Windows.h>
 
 #include <boost/thread.hpp>
 
@@ -62,10 +63,10 @@ public:
 			tmp << "Slice Number  " << slice + 1 << "/" << maxSlice + 1 << "\nOrientation " << "Sagittal";
 			break;
 		case SLICE_ORIENTATION_XZ:
-			tmp << "Slice Number  " << slice + 1 << "/" << maxSlice + 1 << "\nOrientation " << "Axial";
+			tmp << "Slice Number  " << slice + 1 << "/" << maxSlice + 1 << "\nOrientation " << "Coronal";
 			break;
 		case SLICE_ORIENTATION_XY:
-			tmp << "Slice Number  " << slice + 1 << "/" << maxSlice + 1 << "\nOrientation " << "Coronal";
+			tmp << "Slice Number  " << slice + 1 << "/" << maxSlice + 1 << "\nOrientation " << "Axial";
 			break;
 		}
 		return tmp.str();
@@ -117,10 +118,11 @@ public:
 	//void SetPainting(bool state);
 	int getMaxSlice();
 	double* redrawCrossHair();
+	void SetCrossHair(int cross_x, int cross_y);
 	void applyCameraFixes();
 
 protected:
-	
+
 	void MoveSliceForward();
 	void MoveSliceBackward();
 	void ToggleOrientation();

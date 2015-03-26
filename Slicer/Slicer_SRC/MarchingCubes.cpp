@@ -99,7 +99,8 @@ MarchingCubes::MarchingCubes(vtkStructuredPoints* selection) {
 
 	_actor->SetMapper(_mapper);
 	_renderWindow->AddRenderer(_renderer);
-	_renderWindow->SetSize(1280, 720);
+	_renderWindow->SetPosition(800, 0);
+	_renderWindow->SetSize(800, 850);
 	myInteractorStyle->SetDefaultRenderer(_renderer);
 	myInteractorStyle->Modified();
 	_renderer->AddActor(_actor);

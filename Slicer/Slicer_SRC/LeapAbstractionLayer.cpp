@@ -53,6 +53,12 @@ bool LeapAbstractionLayer::getSliceLock(){
 	return _sliceLock;
 }
 
+void LeapAbstractionLayer::getUpdate(int location[3]){
+	location[0] = _update[0];
+	location[1] = _update[1];
+	location[2] = _update[2];
+}
+
 void LeapAbstractionLayer::setX(float x){
 	_x_position = x;
 }
@@ -79,4 +85,10 @@ void LeapAbstractionLayer::setPainting(bool status){
 
 void LeapAbstractionLayer::setSliceLock(bool status){
 	_sliceLock = status;
+}
+
+void LeapAbstractionLayer::RequestUpdate(int i,int j, int k){
+	_update[0] = i;
+	_update[1] = j;
+	_update[2] = k;
 }
