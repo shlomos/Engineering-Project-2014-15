@@ -135,13 +135,9 @@ void myVtkInteractorStyleImage::LoadFromFile(){
 	cout << "Reading, please wait..." << endl;
 	sLoader->Update();
 	vtkImageMapToColors* mapper = (vtkImageMapToColors*)_selection_actor->GetMapper()->GetInputAlgorithm();
-	vtkUnsignedShortArray* temp = (vtkUnsignedShortArray*)(sLoader->GetOutput()->GetPointData()->GetScalars());
-	this->_selection_scalars->DeepCopy(temp);
-	((vtkStructuredPoints*)(mapper->GetInput()))->GetPointData()->SetScalars(this->_selection_scalars);
-	cout << "Updating view, just a little longer..." << endl;
-	this->_selection_scalars->Modified();
-	this->_selection_actor->Modified();
-	cout << "Loaded " << filename << " succesfully!" << endl;
+	mapper->SetInputData(sLoader->GetOutput());
+	mapper->Update();
+	mapper->Modified();
 }
 
 void myVtkInteractorStyleImage::ResetAll(){
@@ -276,14 +272,14 @@ void myVtkInteractorStyleImage::doSegment() {
 
 	vtkSmartPointer<vtkStructuredPoints> selection_structured_points = (vtkStructuredPoints*)((vtkImageMapToColors*)_selection_actor->GetMapper()->GetInputAlgorithm())->GetInput();
 
-	vtkPointData* cellData1 = selection_structured_points->GetPointData();
-	vtkSmartPointer<vtkUnsignedShortArray> sel_scalars_copy = vtkSmartPointer<vtkUnsignedShortArray>::New();
-	sel_scalars_copy->DeepCopy(this->_selection_scalars);
-	cellData1->SetScalars(sel_scalars_copy);
+	//vtkPointData* cellData1 = selection_structured_points->GetPointData();
+	//vtkSmartPointer<vtkUnsignedShortArray> sel_scalars_copy = vtkSmartPointer<vtkUnsignedShortArray>::New();
+	//sel_scalars_copy->DeepCopy(this->_selection_scalars);
+	//cellData1->SetScalars(sel_scalars_copy);
 
-	cellData1->GetScalars()->Modified();
-	cellData1->Modified();
-	selection_structured_points->Modified();
+	//cellData1->GetScalars()->Modified();
+	//cellData1->Modified();
+	//selection_structured_points->Modified();
 
 	//vtkSmartPointer<vtkStructuredPoints> selection_structured_points_copy = vtkSmartPointer<vtkStructuredPoints>::New();
 	//vtkStructuredPoints* output = vtkSmartPointer<vtkStructuredPoints>::New();
@@ -308,7 +304,7 @@ void myVtkInteractorStyleImage::doSegment() {
 	//openClose->Update();
 
 	//((vtkImageMapToColors*)_selection_actor->GetMapper()->GetInputAlgorithm())->SetInputData(selection_structured_points);
-	((vtkImageMapToColors*)_selection_actor->GetMapper()->GetInputAlgorithm())->SetInputData(selection_structured_points);
+	//((vtkImageMapToColors*)_selection_actor->GetMapper()->GetInputAlgorithm())->SetInputData(selection_structured_points);
 }
 
 void myVtkInteractorStyleImage::marchingCubes() {
@@ -564,7 +560,7 @@ void myVtkInteractorStyleImage::ProcessLeapEvents(vtkObject* object, unsigned lo
 	if (intStyle->Interactor->GetControlKey() || (intStyle->_hfMode && intStyle->_lal->getPainting())) {
 
 		vtkPointData* cellData = selection_structured_points->GetPointData();
-		vtkUnsignedShortArray* selection_scalars = intStyle->_selection_scalars;
+		vtkUnsignedShortArray* selection_scalars = (vtkUnsignedShortArray*)cellData->GetScalars();//intStyle->_selection_scalars;
 		//selection_scalars->SetNumberOfValues(selection_structured_points->GetNumberOfPoints());
 
 		double x[3];
@@ -669,7 +665,7 @@ void myVtkInteractorStyleImage::ProcessLeapEvents(vtkObject* object, unsigned lo
 	}
 	else if (intStyle->Interactor->GetAltKey()){
 		vtkPointData* cellData = selection_structured_points->GetPointData();
-		vtkUnsignedShortArray* selection_scalars = intStyle->_selection_scalars;
+		vtkUnsignedShortArray* selection_scalars = (vtkUnsignedShortArray*)cellData->GetScalars();//intStyle->_selection_scalars;
 		//selection_scalars->SetNumberOfValues(selection_structured_points->GetNumberOfPoints());
 
 		double x[3];
