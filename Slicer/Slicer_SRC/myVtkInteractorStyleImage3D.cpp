@@ -1,41 +1,4 @@
 #include "myVtkInteractorStyleImage3D.h"
-#include <vtkRendererCollection.h>
-#include <vtkPolyData.h>
-#include <vtkCellData.h>
-#include <vtkRegularPolygonSource.h>
-#include <vtkPolyData.h>
-#include <vtkSmartPointer.h>
-#include <vtkPolyDataMapper.h>
-#include <vtkActor.h>
-#include <vtkRenderWindow.h>
-#include <vtkRenderer.h>
-#include <vtkRenderWindowInteractor.h>
-#include "constants.h"
-#include <vtkDataSetMapper.h>
-#include <vtkStructuredPoints.h>
-#include <vtkCell.h>
-#include <vtkPointData.h>
-#include <vtkImageActor.h>
-#include <vtkImageMapper3D.h>
-#include <vtkExtractVOI.h>
-#include <vtkStructuredPointsWriter.h>
-#include <vtkCellPicker.h>
-#include <vtkPointPicker.h>
-#include <vtkImageMapToColors.h>
-#include <vtkImageOpenClose3D.h>
-#include <vtkPropPicker.h>
-#include <vtkImageEuclideanDistance.h>
-#include <algorithm>
-#include <vtkAppendPolyData.h>
-#include <vtkCleanPolyData.h>
-#include <vtkDijkstraGraphGeodesicPath.h>
-#include <vtkPolyDataWriter.h>
-#include <vtkCamera.h>
-#include <sstream>
-#include <vtkUnsignedShortArray.h>
-#include <itkImageIORegion.h>
-#include <vtkImageThresholdConnectivity.h>
-
 
 myVtkInteractorStyleImage3D::myVtkInteractorStyleImage3D()
 {}

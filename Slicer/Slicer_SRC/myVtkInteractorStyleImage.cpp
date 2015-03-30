@@ -1,42 +1,7 @@
 #include "myVtkInteractorStyleImage.h"
-#include <vtkRendererCollection.h>
-#include <vtkPolyData.h>
-#include <vtkCellData.h>
-#include <vtkRegularPolygonSource.h>
-#include <vtkPolyData.h>
-#include <vtkSmartPointer.h>
-#include <vtkPolyDataMapper.h>
-#include <vtkActor.h>
-#include <vtkRenderWindow.h>
-#include <vtkRenderer.h>
-#include <vtkRenderWindowInteractor.h>
-#include "constants.h"
-#include <vtkDataSetMapper.h>
-#include <vtkStructuredPoints.h>
-#include <vtkCell.h>
-#include <vtkPointData.h>
-#include <vtkImageActor.h>
-#include <vtkImageMapper3D.h>
-#include <vtkExtractVOI.h>
-#include <vtkStructuredPointsWriter.h>
-#include <vtkCellPicker.h>
-#include <vtkPointPicker.h>
-#include <vtkImageMapToColors.h>
-#include <vtkImageOpenClose3D.h>
-#include <vtkConnectivityFilter.h>
-#include <vtkPropPicker.h>
-#include <vtkImageEuclideanDistance.h>
-#include <algorithm>
-#include <vtkCamera.h>
-#include <sstream>
-#include <vtkDelaunay3D.h>
-#include <vtkUnsignedShortArray.h>
-
 
 myVtkInteractorStyleImage::myVtkInteractorStyleImage()
 {
-	leapCallback = vtkSmartPointer<vtkCallbackCommand>::New();
-	leapCallback->SetCallback(myVtkInteractorStyleImage::ProcessLeapEvents);
 	//_graph_cut = new ImageGraphCut();
 	_selection_scalars = vtkSmartPointer<vtkUnsignedShortArray>::New();
 	this->GrabFocus(this->EventCallbackCommand);
@@ -48,7 +13,6 @@ void myVtkInteractorStyleImage::SetImageViewer(vtkImageViewer2* imageViewer, std
 	_lal = LeapAbstractionLayer::getInstance();
 	_lal->setMaxSlice(imageViewer->GetSliceMax());
 	_drawSize = DEFAULT_DRAW_SIZE;
-	leapCallback->SetClientData(this);
 	//_Slice = _MinSlice;
 	_outputName = outputName;
 	_inputName = inputName;
@@ -249,23 +213,6 @@ void myVtkInteractorStyleImage::WriteToFile() {
 	cout << "Done." << endl;
 }
 
-void myVtkInteractorStyleImage::translateToStructuredPoints(vtkUnstructuredGrid* component, vtkStructuredPoints* temp){
-	vtkPoints* compoPoints = component->GetPoints();
-
-	vtkPointData* pointData = temp->GetPointData();
-	vtkUnsignedShortArray* selection_scalars = (vtkUnsignedShortArray*)pointData->GetScalars();
-	vtkPointData* cPointData = component->GetPointData();
-	vtkUnsignedShortArray* c_selection_scalars = (vtkUnsignedShortArray*)cPointData->GetScalars();
-
-	for (int i = 0; i < compoPoints->GetNumberOfPoints(); i++){
-		if (c_selection_scalars->GetValue(i) != c_selection_scalars->GetValue(max(0, i - 1))){
-			cout << c_selection_scalars->GetValue(i) << endl;
-		}
-		selection_scalars->SetValue(i, c_selection_scalars->GetValue(i));
-	}
-	selection_scalars->Modified();
-}
-
 typedef void(myVtkInteractorStyleImage::*workerFunction)();
 
 void myVtkInteractorStyleImage::doSegment() {
@@ -356,134 +303,25 @@ void myVtkInteractorStyleImage::OnKeyDown() {
 	// forward event
 }
 
-void myVtkInteractorStyleImage::OnMouseWheelForward() {
-	//std::cout << "Scrolled mouse wheel forward." << std::endl;
-	MoveSliceForward();
-	// don't forward events, otherwise the image will be zoomed
-	// in case another interactorstyle is used (e.g. trackballstyle, ...)
-	// vtkInteractorStyleImage::OnMouseWheelForward();
-}
-void myVtkInteractorStyleImage::OnMouseWheelBackward() {
-	//std::cout << "Scrolled mouse wheel backward." << std::endl;
-	if (_lal->getSlice() > 0) {
-		MoveSliceBackward();
-	}
-	// don't forward events, otherwise the image will be zoomed
-	// in case another interactorstyle is used (e.g. trackballstyle, ...)
-	// vtkInteractorStyleImage::OnMouseWheelBackward();
-}
-void myVtkInteractorStyleImage::SetInteractor(vtkRenderWindowInteractor *i)
-{
-	if (i == this->Interactor)
-	{
-		return;
-	}
-	// if we already have an Interactor then stop observing it
-	if (this->Interactor)
-	{
-		this->Interactor->RemoveObserver(this->EventCallbackCommand);
-	}
-	this->Interactor = i;
-	// add observers for each of the events handled in ProcessEvents
-	if (i)
-	{
-		i->AddObserver(vtkCommand::EnterEvent,
-			this->EventCallbackCommand,
-			this->Priority);
-		i->AddObserver(vtkCommand::LeaveEvent,
-			this->EventCallbackCommand,
-			this->Priority);
-		i->AddObserver(vtkCommand::MouseMoveEvent,
-			this->EventCallbackCommand,
-			this->Priority);
-		i->AddObserver(vtkCommand::LeftButtonPressEvent,
-			this->EventCallbackCommand,
-			this->Priority);
-		i->AddObserver(vtkCommand::LeftButtonReleaseEvent,
-			this->EventCallbackCommand,
-			this->Priority);
-		i->AddObserver(vtkCommand::MiddleButtonPressEvent,
-			this->EventCallbackCommand,
-			this->Priority);
-		i->AddObserver(vtkCommand::MiddleButtonReleaseEvent,
-			this->EventCallbackCommand,
-			this->Priority);
-		i->AddObserver(vtkCommand::RightButtonPressEvent,
-			this->EventCallbackCommand,
-			this->Priority);
-		i->AddObserver(vtkCommand::RightButtonReleaseEvent,
-			this->EventCallbackCommand,
-			this->Priority);
-		i->AddObserver(vtkCommand::MouseWheelForwardEvent,
-			this->EventCallbackCommand,
-			this->Priority);
-		i->AddObserver(vtkCommand::MouseWheelBackwardEvent,
-			this->EventCallbackCommand,
-			this->Priority);
-		i->AddObserver(vtkCommand::ExposeEvent,
-			this->EventCallbackCommand,
-			this->Priority);
-		i->AddObserver(vtkCommand::ConfigureEvent,
-			this->EventCallbackCommand,
-			this->Priority);
-		i->AddObserver(vtkCommand::TimerEvent,
-			this->leapCallback,
-			this->Priority);
-		i->AddObserver(vtkCommand::KeyPressEvent,
-			this->EventCallbackCommand,
-			this->Priority);
-		i->AddObserver(vtkCommand::KeyReleaseEvent,
-			this->EventCallbackCommand,
-			this->Priority);
-		i->AddObserver(vtkCommand::CharEvent,
-			this->EventCallbackCommand,
-			this->Priority);
-		i->AddObserver(vtkCommand::DeleteEvent,
-			this->EventCallbackCommand,
-			this->Priority);
-		i->AddObserver(vtkCommand::TDxMotionEvent,
-			this->EventCallbackCommand,
-			this->Priority);
-		i->AddObserver(vtkCommand::TDxButtonPressEvent,
-			this->EventCallbackCommand,
-			this->Priority);
-		i->AddObserver(vtkCommand::TDxButtonReleaseEvent,
-			this->EventCallbackCommand,
-			this->Priority);
-	}
-	this->EventForwarder->SetTarget(this->Interactor);
-	if (this->Interactor)
-	{
-		this->AddObserver(vtkCommand::StartInteractionEvent, this->EventForwarder);
-		this->AddObserver(vtkCommand::EndInteractionEvent, this->EventForwarder);
-	}
-	else
-	{
-		this->RemoveObserver(this->EventForwarder);
-	}
-}
-void myVtkInteractorStyleImage::ProcessLeapEvents(vtkObject* object, unsigned long event, void* clientdata, void* callData){
-	//cout << "Got a leap event!"<< endl;
-	vtkSmartPointer<myVtkInteractorStyleImage> intStyle =
-		reinterpret_cast<myVtkInteractorStyleImage*>(clientdata);
-	vtkActor* cross_actor = intStyle->_ImageViewer->GetRenderer()->GetActors()->GetLastActor();
-	vtkSmartPointer<vtkImageMapToColors> selection_mapper = (vtkImageMapToColors*)intStyle->_selection_actor->GetMapper()->GetInputAlgorithm();
+void myVtkInteractorStyleImage::OnTimer(){
+	vtkActor* cross_actor = _ImageViewer->GetRenderer()->GetActors()->GetLastActor();
+	vtkSmartPointer<vtkImageMapToColors> selection_mapper = (vtkImageMapToColors*)_selection_actor->GetMapper()->GetInputAlgorithm();
 	vtkSmartPointer<vtkStructuredPoints> selection_structured_points = (vtkStructuredPoints *)selection_mapper->GetInput();
 
 
 	int ijk[3];
-	intStyle->_lal->getUpdate(ijk);
+	_lal->getUpdate(ijk);
 	if (ijk[0] != -1){
 		cout << "Shift pressed" << endl;
-		intStyle->_ImageViewer->SetSliceOrientation(SLICE_ORIENTATION_XY);
-		intStyle->_ImageViewer->SetSlice(ijk[2]);
+		_ImageViewer->SetSliceOrientation(SLICE_ORIENTATION_XY);
+		_ImageViewer->SetSlice(ijk[2]);
 		int displayExtent[6];
-		intStyle->_ImageViewer->GetImageActor()->GetDisplayExtent(displayExtent);
-		intStyle->_selection_actor->SetDisplayExtent(displayExtent);
-		intStyle->SetCrossHair(ijk[0], ijk[1]);
-		std::string msg = StatusMessage::Format(ijk[2], intStyle->_lal->getMaxSlice(), intStyle->_ImageViewer->GetSliceOrientation());
-		intStyle->_StatusMapper->SetInput(msg.c_str());
-		intStyle->_lal->RequestUpdate(-1, -1, -1);
+		_ImageViewer->GetImageActor()->GetDisplayExtent(displayExtent);
+		_selection_actor->SetDisplayExtent(displayExtent);
+		SetCrossHair(ijk[0], ijk[1]);
+		std::string msg = StatusMessage::Format(ijk[2], _lal->getMaxSlice(), _ImageViewer->GetSliceOrientation());
+		_StatusMapper->SetInput(msg.c_str());
+		_lal->RequestUpdate(-1, -1, -1);
 	}
 	// do noting if not in focus
 	HWND forground = GetForegroundWindow();
@@ -494,8 +332,8 @@ void myVtkInteractorStyleImage::ProcessLeapEvents(vtkObject* object, unsigned lo
 		if (strcmp("Slicer", window_title)) {
 			// render
 			cross_actor->GetMapper()->Update();
-			intStyle->_selection_actor->GetMapper()->Update();
-			intStyle->_ImageViewer->Render();
+			_selection_actor->GetMapper()->Update();
+			_ImageViewer->Render();
 			return;
 		}
 	}
@@ -505,30 +343,30 @@ void myVtkInteractorStyleImage::ProcessLeapEvents(vtkObject* object, unsigned lo
 	// changing the crosshair
 	vtkSmartPointer<vtkPoints> new_pts =
 		vtkSmartPointer<vtkPoints>::New();
-	double* temp = intStyle->redrawCrossHair();
+	double* temp = redrawCrossHair();
 	double cross_1 = temp[0];
 	double cross_2 = temp[1];
 	double cross_3 = temp[2];
 	delete temp;
 
 	// When SHIFT key is pressed, udpate slice
-	if (intStyle->Interactor->GetShiftKey() || (intStyle->_hfMode && !intStyle->_lal->getSliceLock())){
+	if (Interactor->GetShiftKey() || (_hfMode && !_lal->getSliceLock())){
 		cout << "Shift pressed" << endl;
-		intStyle->_ImageViewer->SetSlice(intStyle->_lal->getSlice());
+		_ImageViewer->SetSlice(_lal->getSlice());
 		int displayExtent[6];
-		intStyle->_ImageViewer->GetImageActor()->GetDisplayExtent(displayExtent);
-		intStyle->_selection_actor->SetDisplayExtent(displayExtent);
-		std::string msg = StatusMessage::Format(intStyle->_lal->getSlice(), intStyle->_lal->getMaxSlice(), intStyle->_ImageViewer->GetSliceOrientation());
-		intStyle->_StatusMapper->SetInput(msg.c_str());
+		_ImageViewer->GetImageActor()->GetDisplayExtent(displayExtent);
+		_selection_actor->SetDisplayExtent(displayExtent);
+		std::string msg = StatusMessage::Format(_lal->getSlice(), _lal->getMaxSlice(), _ImageViewer->GetSliceOrientation());
+		_StatusMapper->SetInput(msg.c_str());
 	}
 
 	int *selExt = selection_structured_points->GetExtent();
 
 
-	if (intStyle->Interactor->GetControlKey() || (intStyle->_hfMode && intStyle->_lal->getPainting())) {
+	if (Interactor->GetControlKey() || (_hfMode && _lal->getPainting())) {
 
 		vtkPointData* cellData = selection_structured_points->GetPointData();
-		vtkUnsignedShortArray* selection_scalars = (vtkUnsignedShortArray*)cellData->GetScalars();//intStyle->_selection_scalars;
+		vtkUnsignedShortArray* selection_scalars = (vtkUnsignedShortArray*)cellData->GetScalars();//_selection_scalars;
 		//selection_scalars->SetNumberOfValues(selection_structured_points->GetNumberOfPoints());
 
 		double x[3];
@@ -536,21 +374,21 @@ void myVtkInteractorStyleImage::ProcessLeapEvents(vtkObject* object, unsigned lo
 		double pCoord[3];
 		int ijk2[3];
 		int minX, maxX, minY, maxY;
-		switch (intStyle->_ImageViewer->GetSliceOrientation()) {
+		switch (_ImageViewer->GetSliceOrientation()) {
 		case SLICE_ORIENTATION_YZ:
 			cout << "case 0" << endl;
 			x[0] = cross_3;
 			x[1] = cross_2;
 			x[2] = cross_1;
 			selection_structured_points->ComputeStructuredCoordinates(x, ijk, pCoord);
-			ijk[0] = intStyle->_ImageViewer->GetSlice();//_lal->getSlice();
+			ijk[0] = _ImageViewer->GetSlice();//_lal->getSlice();
 			ijk2[1] = 0;
 			ijk2[2] = 0;
 			ijk2[0] = ijk[0];
-			minX = std::max(0, ijk[2] - intStyle->_drawSize);
-			maxX = std::min(ijk[2] + intStyle->_drawSize, selExt[5]);
-			minY = std::max(ijk[1] - intStyle->_drawSize, 0);
-			maxY = std::min(ijk[1] + intStyle->_drawSize, selExt[3]);
+			minX = std::max(0, ijk[2] - _drawSize);
+			maxX = std::min(ijk[2] + _drawSize, selExt[5]);
+			minY = std::max(ijk[1] - _drawSize, 0);
+			maxY = std::min(ijk[1] + _drawSize, selExt[3]);
 			for (int i = minX; i < maxX; i++){
 				ijk2[2] = i;
 				for (int j = minY; j < maxY; j++){
@@ -567,14 +405,14 @@ void myVtkInteractorStyleImage::ProcessLeapEvents(vtkObject* object, unsigned lo
 			x[1] = cross_3;
 			x[2] = cross_2;
 			selection_structured_points->ComputeStructuredCoordinates(x, ijk, pCoord);
-			ijk[1] = intStyle->_ImageViewer->GetSlice();
+			ijk[1] = _ImageViewer->GetSlice();
 			ijk2[0] = 0;
 			ijk2[1] = ijk[1];
 			ijk2[2] = 0;
-			minX = std::max(0, ijk[0] - intStyle->_drawSize);
-			maxX = std::min(ijk[0] + intStyle->_drawSize, selExt[1]);
-			minY = std::max(ijk[2] - intStyle->_drawSize, 0);
-			maxY = std::min(ijk[2] + intStyle->_drawSize, selExt[5]);
+			minX = std::max(0, ijk[0] - _drawSize);
+			maxX = std::min(ijk[0] + _drawSize, selExt[1]);
+			minY = std::max(ijk[2] - _drawSize, 0);
+			maxY = std::min(ijk[2] + _drawSize, selExt[5]);
 			for (int i = minX; i < maxX; i++){
 				ijk2[0] = i;
 				for (int j = minY; j < maxY; j++){
@@ -590,14 +428,14 @@ void myVtkInteractorStyleImage::ProcessLeapEvents(vtkObject* object, unsigned lo
 			x[1] = cross_2;
 			x[2] = cross_3;
 			selection_structured_points->ComputeStructuredCoordinates(x, ijk, pCoord);
-			ijk[2] = intStyle->_ImageViewer->GetSlice();
+			ijk[2] = _ImageViewer->GetSlice();
 			ijk2[0] = 0;
 			ijk2[1] = 0;
 			ijk2[2] = ijk[2];
-			minX = std::max(0, ijk[0] - intStyle->_drawSize);
-			maxX = std::min(ijk[0] + intStyle->_drawSize, selExt[1]);
-			minY = std::max(ijk[1] - intStyle->_drawSize, 0);
-			maxY = std::min(ijk[1] + intStyle->_drawSize, selExt[3]);
+			minX = std::max(0, ijk[0] - _drawSize);
+			maxX = std::min(ijk[0] + _drawSize, selExt[1]);
+			minY = std::max(ijk[1] - _drawSize, 0);
+			maxY = std::min(ijk[1] + _drawSize, selExt[3]);
 			for (int i = minX; i < maxX; i++){
 				ijk2[0] = i;
 				for (int j = minY; j < maxY; j++){
@@ -631,9 +469,9 @@ void myVtkInteractorStyleImage::ProcessLeapEvents(vtkObject* object, unsigned lo
 		da->SetValue(4, 0);
 		da->SetValue(5, 0);
 	}
-	else if (intStyle->Interactor->GetAltKey()){
+	else if (Interactor->GetAltKey()){
 		vtkPointData* cellData = selection_structured_points->GetPointData();
-		vtkUnsignedShortArray* selection_scalars = (vtkUnsignedShortArray*)cellData->GetScalars();//intStyle->_selection_scalars;
+		vtkUnsignedShortArray* selection_scalars = (vtkUnsignedShortArray*)cellData->GetScalars();//_selection_scalars;
 		//selection_scalars->SetNumberOfValues(selection_structured_points->GetNumberOfPoints());
 
 		double x[3];
@@ -641,21 +479,21 @@ void myVtkInteractorStyleImage::ProcessLeapEvents(vtkObject* object, unsigned lo
 		double pCoord[3];
 		int ijk2[3];
 		int minX, maxX, minY, maxY;
-		switch (intStyle->_ImageViewer->GetSliceOrientation()) {
+		switch (_ImageViewer->GetSliceOrientation()) {
 		case SLICE_ORIENTATION_YZ:
 			cout << "case 0" << endl;
 			x[0] = cross_3;
 			x[1] = cross_2;
 			x[2] = cross_1;
 			selection_structured_points->ComputeStructuredCoordinates(x, ijk, pCoord);
-			ijk[0] = intStyle->_ImageViewer->GetSlice();//_lal->getSlice();
+			ijk[0] = _ImageViewer->GetSlice();//_lal->getSlice();
 			ijk2[1] = 0;
 			ijk2[2] = 0;
 			ijk2[0] = ijk[0];
-			minX = std::max(0, ijk[2] - intStyle->_drawSize);
-			maxX = std::min(ijk[2] + intStyle->_drawSize, selExt[5]);
-			minY = std::max(ijk[1] - intStyle->_drawSize, 0);
-			maxY = std::min(ijk[1] + intStyle->_drawSize, selExt[3]);
+			minX = std::max(0, ijk[2] - _drawSize);
+			maxX = std::min(ijk[2] + _drawSize, selExt[5]);
+			minY = std::max(ijk[1] - _drawSize, 0);
+			maxY = std::min(ijk[1] + _drawSize, selExt[3]);
 			for (int i = minX; i < maxX; i++){
 				ijk2[2] = i;
 				for (int j = minY; j < maxY; j++){
@@ -672,14 +510,14 @@ void myVtkInteractorStyleImage::ProcessLeapEvents(vtkObject* object, unsigned lo
 			x[1] = cross_3;
 			x[2] = cross_2;
 			selection_structured_points->ComputeStructuredCoordinates(x, ijk, pCoord);
-			ijk[1] = intStyle->_ImageViewer->GetSlice();
+			ijk[1] = _ImageViewer->GetSlice();
 			ijk2[0] = 0;
 			ijk2[1] = ijk[1];
 			ijk2[2] = 0;
-			minX = std::max(0, ijk[0] - intStyle->_drawSize);
-			maxX = std::min(ijk[0] + intStyle->_drawSize, selExt[1]);
-			minY = std::max(ijk[2] - intStyle->_drawSize, 0);
-			maxY = std::min(ijk[2] + intStyle->_drawSize, selExt[5]);
+			minX = std::max(0, ijk[0] - _drawSize);
+			maxX = std::min(ijk[0] + _drawSize, selExt[1]);
+			minY = std::max(ijk[2] - _drawSize, 0);
+			maxY = std::min(ijk[2] + _drawSize, selExt[5]);
 			for (int i = minX; i < maxX; i++){
 				ijk2[0] = i;
 				for (int j = minY; j < maxY; j++){
@@ -695,14 +533,14 @@ void myVtkInteractorStyleImage::ProcessLeapEvents(vtkObject* object, unsigned lo
 			x[1] = cross_2;
 			x[2] = cross_3;
 			selection_structured_points->ComputeStructuredCoordinates(x, ijk, pCoord);
-			ijk[2] = intStyle->_ImageViewer->GetSlice();
+			ijk[2] = _ImageViewer->GetSlice();
 			ijk2[0] = 0;
 			ijk2[1] = 0;
 			ijk2[2] = ijk[2];
-			minX = std::max(0, ijk[0] - intStyle->_drawSize);
-			maxX = std::min(ijk[0] + intStyle->_drawSize, selExt[1]);
-			minY = std::max(ijk[1] - intStyle->_drawSize, 0);
-			maxY = std::min(ijk[1] + intStyle->_drawSize, selExt[3]);
+			minX = std::max(0, ijk[0] - _drawSize);
+			maxX = std::min(ijk[0] + _drawSize, selExt[1]);
+			minY = std::max(ijk[1] - _drawSize, 0);
+			maxY = std::min(ijk[1] + _drawSize, selExt[3]);
 			for (int i = minX; i < maxX; i++){
 				ijk2[0] = i;
 				for (int j = minY; j < maxY; j++){
@@ -750,9 +588,26 @@ void myVtkInteractorStyleImage::ProcessLeapEvents(vtkObject* object, unsigned lo
 
 	// render
 	cross_actor->GetMapper()->Update();
-	intStyle->_selection_actor->GetMapper()->Update();
-	intStyle->_ImageViewer->Render();
+	_selection_actor->GetMapper()->Update();
+	_ImageViewer->Render();
+}
 
+
+void myVtkInteractorStyleImage::OnMouseWheelForward() {
+	//std::cout << "Scrolled mouse wheel forward." << std::endl;
+	MoveSliceForward();
+	// don't forward events, otherwise the image will be zoomed
+	// in case another interactorstyle is used (e.g. trackballstyle, ...)
+	// vtkInteractorStyleImage::OnMouseWheelForward();
+}
+void myVtkInteractorStyleImage::OnMouseWheelBackward() {
+	//std::cout << "Scrolled mouse wheel backward." << std::endl;
+	if (_lal->getSlice() > 0) {
+		MoveSliceBackward();
+	}
+	// don't forward events, otherwise the image will be zoomed
+	// in case another interactorstyle is used (e.g. trackballstyle, ...)
+	// vtkInteractorStyleImage::OnMouseWheelBackward();
 }
 
 myVtkInteractorStyleImage::~myVtkInteractorStyleImage(){

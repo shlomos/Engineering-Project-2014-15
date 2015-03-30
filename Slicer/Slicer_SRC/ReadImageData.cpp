@@ -201,12 +201,10 @@ int main(int argc, char* argv[])
 	smoothed->SetRadiusFactors(SMOOTHING_FACTOR_XY, SMOOTHING_FACTOR_XY, SMOOTHING_FACTOR_Z);
 	//smoothed->SetStandardDeviations(0.0,0.0,0.0);
 	smoothed->Update();
-
 	//First of all set the input for the viewer!
 	viewer->SetInputConnection(reader->GetOutputPort());
 	// make imageviewer2 and sliceTextMapper visible to our interactorstyle
 	// to enable slice status message updates when scrolling through the slices
-
 	vtkSmartPointer<vtkImageActor> selectionA = vtkSmartPointer<vtkImageActor>::New();
 	selectionA->GetMapper()->SetInputConnection(mapperSel->GetOutputPort());
 	selectionA->InterpolateOff();
@@ -245,7 +243,6 @@ int main(int argc, char* argv[])
 	usageTextActor->SetMapper(usageTextMapper);
 	usageTextActor->GetPositionCoordinate()->SetCoordinateSystemToNormalizedDisplay();
 	usageTextActor->GetPositionCoordinate()->SetValue(0.05, 0.95);
-
 	//Segmenter
 	//Segmenter* _segmenter = new Segmenter((vtkStructuredPoints*)(((vtkImageMapToColors*)selectionA->GetMapper()->GetInputAlgorithm()))->GetInput(), reader->GetOutput());
 	myInteractorStyle->SetImageViewer(viewer, outputName, inputFilename, selectionA, (vtkStructuredPoints*)smoothed->GetOutput()/*reader->GetOutput()*/);
