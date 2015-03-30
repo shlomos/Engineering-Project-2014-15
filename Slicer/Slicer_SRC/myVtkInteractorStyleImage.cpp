@@ -97,10 +97,16 @@ void myVtkInteractorStyleImage::LoadFromFile(){
 	vtkSmartPointer<vtkStructuredPointsReader> sLoader =
 		vtkSmartPointer<vtkStructuredPointsReader>::New();
 	sLoader->SetFileName(filename.c_str());
-	cout << "Reading, please wait..." << endl;
+	cout << sLoader->GetOutput()->GetScalarType() << endl;
 	sLoader->Update();
+	vtkImageCast* imagecast = vtkImageCast::New();
+	imagecast->SetInputData(sLoader->GetOutput());
+	imagecast->SetOutputScalarTypeToUnsignedShort();
+	imagecast->Update();
+	//sLoader->GetOutput()->SetScalarType(VTK_UNSIGNED_SHORT, sLoader->GetOutput()->GetInformation());
+	cout << "Reading, please wait..." << endl;
 	vtkImageMapToColors* mapper = (vtkImageMapToColors*)_selection_actor->GetMapper()->GetInputAlgorithm();
-	mapper->SetInputData(sLoader->GetOutput());
+	mapper->SetInputData((vtkStructuredPoints*)imagecast->GetOutput());
 	mapper->Update();
 	mapper->Modified();
 }

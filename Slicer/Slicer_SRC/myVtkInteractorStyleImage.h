@@ -43,6 +43,7 @@
 #include <algorithm>
 #include <vtkCamera.h>
 #include <sstream>
+#include <vtkImageCast.h>
 #include "GrowCut.h"
 #include "MarchingCubes.h"
 #include "LeapAbstractionLayer.h" 
