@@ -99,6 +99,7 @@ protected:
 	int _drawSize;
 	vtkSmartPointer<vtkImageActor> _selection_actor;
 	vtkStructuredPoints* _CT_image;
+	std::string _inputName;
 	bool _hfMode;
 	//bool _isSliceLocked;
 	boost::mutex _canSegment_mutex;
@@ -110,7 +111,7 @@ protected:
 
 public:
 	myVtkInteractorStyleImage();
-	void SetImageViewer(vtkImageViewer2* imageViewer, std::string outputName, vtkSmartPointer<vtkImageActor> selection_actor, vtkStructuredPoints* CT_image);
+	void SetImageViewer(vtkImageViewer2* imageViewer, std::string outputName, std::string inputName, vtkSmartPointer<vtkImageActor> selection_actor, vtkStructuredPoints* CT_image);
 	void SetStatusMapper(vtkTextMapper* statusMapper);
 	void doSegment();
 	//void setSlice(int slice);

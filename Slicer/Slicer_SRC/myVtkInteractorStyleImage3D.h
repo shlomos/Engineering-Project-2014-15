@@ -85,6 +85,7 @@ public:
 protected:
 	vtkTextMapper* _StatusMapper;
 	std::string _outputName;
+	std::string _inputName;
 	LeapAbstractionLayer* _lal;
 	int _drawSize;
 	bool _rotLock;
@@ -96,7 +97,7 @@ protected:
 public:
 	myVtkInteractorStyleImage3D();
 	void SetStatusMapper(vtkTextMapper* statusMapper);
-	void Initialize(std::string outputName, vtkStructuredPoints* _selection);
+	void Initialize(std::string outputName, std::string inputName, vtkStructuredPoints* _selection);
 	void RemoveLeaks();
 
 protected:

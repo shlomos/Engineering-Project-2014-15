@@ -41,7 +41,7 @@ myVtkInteractorStyleImage::myVtkInteractorStyleImage()
 	_selection_scalars = vtkSmartPointer<vtkUnsignedShortArray>::New();
 	this->GrabFocus(this->EventCallbackCommand);
 }
-void myVtkInteractorStyleImage::SetImageViewer(vtkImageViewer2* imageViewer, std::string outputName, vtkSmartPointer<vtkImageActor> selection_actor, vtkStructuredPoints* CT_image) {
+void myVtkInteractorStyleImage::SetImageViewer(vtkImageViewer2* imageViewer, std::string outputName, std::string inputName, vtkSmartPointer<vtkImageActor> selection_actor, vtkStructuredPoints* CT_image) {
 	_ImageViewer = imageViewer;
 	_ImageViewer->SetSliceOrientation(SLICE_ORIENTATION_XY);
 	_orientation = -SLICE_ORIENTATION_XY;
@@ -51,6 +51,7 @@ void myVtkInteractorStyleImage::SetImageViewer(vtkImageViewer2* imageViewer, std
 	leapCallback->SetClientData(this);
 	//_Slice = _MinSlice;
 	_outputName = outputName;
+	_inputName = inputName;
 	_hfMode = false;
 	//_isSliceLocked = false;
 	//_isPainting = false;
@@ -269,48 +270,15 @@ typedef void(myVtkInteractorStyleImage::*workerFunction)();
 
 void myVtkInteractorStyleImage::doSegment() {
 	boost::mutex::scoped_lock scoped_lock(_canSegment_mutex);
-
 	vtkSmartPointer<vtkStructuredPoints> selection_structured_points = (vtkStructuredPoints*)((vtkImageMapToColors*)_selection_actor->GetMapper()->GetInputAlgorithm())->GetInput();
-
-	//vtkPointData* cellData1 = selection_structured_points->GetPointData();
-	//vtkSmartPointer<vtkUnsignedShortArray> sel_scalars_copy = vtkSmartPointer<vtkUnsignedShortArray>::New();
-	//sel_scalars_copy->DeepCopy(this->_selection_scalars);
-	//cellData1->SetScalars(sel_scalars_copy);
-
-	//cellData1->GetScalars()->Modified();
-	//cellData1->Modified();
-	//selection_structured_points->Modified();
-
-	//vtkSmartPointer<vtkStructuredPoints> selection_structured_points_copy = vtkSmartPointer<vtkStructuredPoints>::New();
-	//vtkStructuredPoints* output = vtkSmartPointer<vtkStructuredPoints>::New();
-
-	// perform deep copy, in order to seperate between the segmentation given by the user, and the one computed by the machine
-	//selection_structured_points_copy->DeepCopy(selection_structured_points);
-
-	//_graph_cut->SetImage(selection_structured_points_copy, _CT_image);
-	//output = _graph_cut->PerformSegmentation();
-
 	_grow_cut->SetImage(_CT_image, selection_structured_points);
 	_grow_cut->PerformSegmentation();
-
-	//selection_structured_points = output;
-	//vtkSmartPointer<vtkImageOpenClose3D> openClose =
-	//	vtkSmartPointer<vtkImageOpenClose3D>::New();
-	//openClose->SetInputData(selection_structured_points);
-	//openClose->SetOpenValue(NOT_ACTIVE);
-	//openClose->SetCloseValue(FOREGROUND);
-	//openClose->SetKernelSize(XY_OPENCLOSE, XY_OPENCLOSE, Z_OPENCLOSE);
-	//openClose->ReleaseDataFlagOff();
-	//openClose->Update();
-
-	//((vtkImageMapToColors*)_selection_actor->GetMapper()->GetInputAlgorithm())->SetInputData(selection_structured_points);
-	//((vtkImageMapToColors*)_selection_actor->GetMapper()->GetInputAlgorithm())->SetInputData(selection_structured_points);
 }
 
 void myVtkInteractorStyleImage::marchingCubes() {
 	cout << "in marchingCubes() " << endl;
 	vtkStructuredPoints* selection_structured_points = (vtkStructuredPoints*)((vtkImageMapToColors*)_selection_actor->GetMapper()->GetInputAlgorithm())->GetInput();
-	_marching_cubes = new MarchingCubes(selection_structured_points);
+	_marching_cubes = new MarchingCubes(selection_structured_points, _inputName);
 	cout << "End of marchingCubes ctor" << endl;
 
 }

@@ -23,18 +23,22 @@ void Tumor::addPoint(Tumor::Point3D point, Tumor::Point3D limits){
 	/*cout << "point[0]" << point[0];
 	cout << " point[1] " << point[1];
 	cout << " point[2] " << point[2] << endl;*/
-	//map<int, Tumor::Point3D>::iterator currPoint = this->active_points.find(map_key);
-	//if (currPoint != active_points.end()){
-	//	currPoint->second.
-	//}
-	//else{
+	map<int, Tumor::Point3D>::iterator currPoint = this->active_points.find(map_key);
+	if (currPoint != active_points.end()){
+		if (currPoint->second.strength != point.strength || currPoint->second.point_type != point.point_type){
+			currPoint->second.strength = point.strength;
+			currPoint->second.prev_strength = point.prev_strength;
+			currPoint->second.point_type = point.point_type;
+			currPoint->second.prev_point_type = point.prev_point_type;
+		}
+	}
+	else{
 		this->points.insert(std::pair<int, Tumor::Point3D>(map_key, point));
 		this->numSeeds++;
-	//}
-
-	//update active points' list
-	if (point.point_type != NOT_ACTIVE) {
-		this->active_points.insert(std::pair<int, Tumor::Point3D>(map_key, point));
+		//update active points' list
+		if (point.point_type != NOT_ACTIVE) {
+			this->active_points.insert(std::pair<int, Tumor::Point3D>(map_key, point));
+		}
 	}
 
 	if (point.point_type != FOREGROUND) {

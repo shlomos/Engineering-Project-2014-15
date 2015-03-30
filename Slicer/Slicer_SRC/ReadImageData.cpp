@@ -134,8 +134,8 @@ int main(int argc, char* argv[])
 	selection->SetOrigin(reader->GetOutput()->GetOrigin());
 
 	// Setup the colors array for crosshair
-	vtkSmartPointer<vtkIntArray> selection_colors =
-		vtkSmartPointer<vtkIntArray>::New();
+	vtkSmartPointer<vtkUnsignedShortArray> selection_colors =
+		vtkSmartPointer<vtkUnsignedShortArray>::New();
 	//selection_colors->SetNumberOfComponents(1);//4
 	selection->AllocateScalars(VTK_UNSIGNED_SHORT, 1);
 	cout << selection->GetNumberOfCells() << endl;
@@ -248,7 +248,7 @@ int main(int argc, char* argv[])
 
 	//Segmenter
 	//Segmenter* _segmenter = new Segmenter((vtkStructuredPoints*)(((vtkImageMapToColors*)selectionA->GetMapper()->GetInputAlgorithm()))->GetInput(), reader->GetOutput());
-	myInteractorStyle->SetImageViewer(viewer, outputName, selectionA, (vtkStructuredPoints*)smoothed->GetOutput()/*reader->GetOutput()*/);
+	myInteractorStyle->SetImageViewer(viewer, outputName, inputFilename, selectionA, (vtkStructuredPoints*)smoothed->GetOutput()/*reader->GetOutput()*/);
 	myInteractorStyle->SetStatusMapper(sliceTextMapper);
 	viewer->SetupInteractor(renderWindowInteractor);
 	//mapperSel->SetScalarModeToUseCellData();

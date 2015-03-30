@@ -44,10 +44,11 @@ void myVtkInteractorStyleImage3D::SetStatusMapper(vtkTextMapper* statusMapper) {
 	_StatusMapper = statusMapper;
 }
 
-void myVtkInteractorStyleImage3D::Initialize(std::string outputName, vtkStructuredPoints* selection){
+void myVtkInteractorStyleImage3D::Initialize(std::string outputName, std::string inputName, vtkStructuredPoints* selection){
 	_drawSize = DEFAULT_DRAW_SIZE;
 	_lal = LeapAbstractionLayer::getInstance();
 	_outputName = outputName;
+	_inputName = inputName;
 	_hfMode = false;
 	_rotLock = false;
 	_currSource = -1;
@@ -101,7 +102,7 @@ void myVtkInteractorStyleImage3D::RemoveLeaks(){
 	typedef itk::Image<SegPixelType, dim> SegImageType;
 
 	MeshLeaksCorrector mlc;
-	ImageType::Pointer inputImage = mlc.read3DImage<ImageType>("GG.vtk");
+	ImageType::Pointer inputImage = mlc.read3DImage<ImageType>(_inputName.c_str());
 	cout << "Image reading done." << endl;
 	typedef itk::GradientMagnitudeImageFilter<ImageType, ImageType> GradientFilterType;
 	GradientFilterType::Pointer gradientFilter = GradientFilterType::New();
@@ -189,6 +190,9 @@ void myVtkInteractorStyleImage3D::RemoveLeaks(){
 	cout << "bedug 1" << endl;
 	// selection is not NULL (checked...)
 	cout << "this->_selection->GetScalarType(): " << this->_selection->GetScalarType() << endl;
+	if (this->_selection->GetScalarType() == VTK_INT){
+		cout << "I have INTs instead of shorts for some reason!" << endl;
+	}
 	converter->SetInput(this->_selection);
 	cout << "deb 5" << endl;
 	converter->Update(); // 

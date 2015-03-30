@@ -1,6 +1,6 @@
 #include "MarchingCubes.h"
 
-MarchingCubes::MarchingCubes(vtkStructuredPoints* selection) {
+MarchingCubes::MarchingCubes(vtkStructuredPoints* selection, std::string inputName) {
 
 	this->_selection = selection;
 
@@ -9,6 +9,7 @@ MarchingCubes::MarchingCubes(vtkStructuredPoints* selection) {
 	_renderWindow = vtkRenderWindow::New();
 	_mapper = vtkPolyDataMapper::New();
 	_actor = vtkActor::New();
+	_inputName = inputName;
 	_mask = vtkImageMaskBits::New();
 	_interactor = vtkRenderWindowInteractor::New();
 
@@ -107,6 +108,6 @@ MarchingCubes::MarchingCubes(vtkStructuredPoints* selection) {
 	_renderWindow->SetCurrentCursor(VTK_CURSOR_CROSSHAIR);
 	_renderer->ResetCamera();
 	_renderWindow->Render();
-	myInteractorStyle->Initialize("Output.obj", this->_selection);
+	myInteractorStyle->Initialize("Output.obj", inputName, this->_selection);
 	_interactor->Start();
 }
