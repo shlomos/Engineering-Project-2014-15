@@ -88,6 +88,7 @@ protected:
 	std::string _inputName;
 	LeapAbstractionLayer* _lal;
 	int _drawSize;
+	int _numTumors;
 	bool _rotLock;
 	bool _hfMode;
 	vtkIdType _currSource;
@@ -97,7 +98,7 @@ protected:
 public:
 	myVtkInteractorStyleImage3D();
 	void SetStatusMapper(vtkTextMapper* statusMapper);
-	void Initialize(std::string outputName, std::string inputName, vtkStructuredPoints* _selection);
+	void Initialize(std::string outputName, std::string inputName, vtkStructuredPoints* _selection, int numTumors);
 	void RemoveLeaks();
 
 protected:

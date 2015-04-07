@@ -37,7 +37,7 @@
 class MarchingCubes {
 	
 public:
-	MarchingCubes(vtkStructuredPoints* selection, std::string inputName);
+	MarchingCubes(vtkStructuredPoints* selection, std::string inputName, int numTumors);
 	~MarchingCubes();
 	
 private:
@@ -49,6 +49,7 @@ private:
 	vtkSmartPointer<vtkActor>          _actor;
 	vtkSmartPointer<vtkImageMaskBits>  _mask;
 	std::string _inputName;
+	int _numTumors;
 
 	//vtkSmartPointer<vtkImageViewer2>   _viewer;
 	vtkStructuredPoints* _selection;

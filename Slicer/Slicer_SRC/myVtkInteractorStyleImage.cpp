@@ -231,7 +231,7 @@ void myVtkInteractorStyleImage::doSegment() {
 void myVtkInteractorStyleImage::marchingCubes() {
 	cout << "in marchingCubes() " << endl;
 	vtkStructuredPoints* selection_structured_points = (vtkStructuredPoints*)((vtkImageMapToColors*)_selection_actor->GetMapper()->GetInputAlgorithm())->GetInput();
-	_marching_cubes = new MarchingCubes(selection_structured_points, _inputName);
+	_marching_cubes = new MarchingCubes(selection_structured_points, _inputName, _grow_cut->getNumTumors());
 	cout << "End of marchingCubes ctor" << endl;
 
 }

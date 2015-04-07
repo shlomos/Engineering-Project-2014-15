@@ -27,7 +27,7 @@ void GrowCut::init_tumors() {
 	{
 		for (int j = 0; j < extent[3]; j++)
 		{
-			for (int k = 0; k < extent[5]; k++)
+			for (int k = 0; k <= extent[5]; k++)
 			{
 				current_point = ComputePointId(i, j, k);
 				int ct_color = ct_scalars->GetValue(current_point);
@@ -225,5 +225,5 @@ float GrowCut::g_function(int Cp, int Cq) {
 	//cout << "max min" << this->max_color << ":" << this->min_color << endl;
 	//cout << "formula: " << 1.0-(float(abs(Cp - Cq)) / float(this->max_color - this->min_color)) << endl;
 	//return 1.0 - (float(abs(Cp - Cq)) / float(this->max_color - this->min_color));
-	return exp(-0.5*float(abs(Cp - Cq))*float(abs(Cp - Cq)));
+	return exp(-0.3*float(abs(Cp - Cq))*float(abs(Cp - Cq)));
 }

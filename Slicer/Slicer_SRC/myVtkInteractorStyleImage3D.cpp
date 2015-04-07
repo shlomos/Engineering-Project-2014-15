@@ -7,10 +7,11 @@ void myVtkInteractorStyleImage3D::SetStatusMapper(vtkTextMapper* statusMapper) {
 	_StatusMapper = statusMapper;
 }
 
-void myVtkInteractorStyleImage3D::Initialize(std::string outputName, std::string inputName, vtkStructuredPoints* selection){
+void myVtkInteractorStyleImage3D::Initialize(std::string outputName, std::string inputName, vtkStructuredPoints* selection, int numTumors){
 	_drawSize = DEFAULT_DRAW_SIZE;
 	_lal = LeapAbstractionLayer::getInstance();
 	_outputName = outputName;
+	_numTumors = numTumors;
 	_inputName = inputName;
 	_hfMode = false;
 	_rotLock = false;
@@ -162,11 +163,16 @@ void myVtkInteractorStyleImage3D::RemoveLeaks(){
 	cout << "bedug 2" << endl;
 	SegImageType::Pointer segInputImage = converter->GetOutput();
 	cout << "bedug 3" << endl;
-	SegImageType::Pointer outputContourImage = mlc.sampleMeshOnImage<SegImageType>(/*decimatedMesh*/correctedMesh1, segInputImage);
+	SegImageType::Pointer outputContourImage = mlc.sampleMeshOnImage<SegImageType>(decimatedMesh, segInputImage);
 	cout << "bedug 4" << endl;
-	SegImageType::Pointer seedInputImage = mlc.sampleMeshOnImage<SegImageType>(mapper->GetInput(), segInputImage);
+	vtkSmartPointer<vtkDecimatePro> decimateFilter2 = vtkDecimatePro::New();
+	decimateFilter2->SetInputData(mapper->GetInput());
+	decimateFilter2->SetTargetReduction(DECIMATION_FACTOR);
+	decimateFilter2->PreserveTopologyOn();
+	decimateFilter2->Update();
+	SegImageType::Pointer seedInputImage = mlc.sampleMeshOnImage<SegImageType>(decimateFilter2->GetOutput(), segInputImage);
 	cout << "bedug 5" << endl;
-	SegImageType::Pointer outputImage = mlc.correctImage<SegImageType>(segInputImage, seedInputImage, outputContourImage);
+	SegImageType::Pointer outputImage = mlc.correctImage<SegImageType>(segInputImage, seedInputImage, outputContourImage, _numTumors);
 
 	typedef itk::ImageFileWriter<SegImageType> WriterType;
 	WriterType::Pointer writer = WriterType::New();

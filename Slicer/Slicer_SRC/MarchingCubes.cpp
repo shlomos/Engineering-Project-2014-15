@@ -1,9 +1,9 @@
 #include "MarchingCubes.h"
 
-MarchingCubes::MarchingCubes(vtkStructuredPoints* selection, std::string inputName) {
+MarchingCubes::MarchingCubes(vtkStructuredPoints* selection, std::string inputName, int numTumors) {
 
 	this->_selection = selection;
-
+	_numTumors = numTumors;
 	_surface = vtkMarchingCubes::New();
 	_renderer = vtkRenderer::New();
 	_renderWindow = vtkRenderWindow::New();
@@ -108,6 +108,6 @@ MarchingCubes::MarchingCubes(vtkStructuredPoints* selection, std::string inputNa
 	_renderWindow->SetCurrentCursor(VTK_CURSOR_CROSSHAIR);
 	_renderer->ResetCamera();
 	_renderWindow->Render();
-	myInteractorStyle->Initialize("Output.obj", inputName, this->_selection);
+	myInteractorStyle->Initialize("Output.obj", inputName, this->_selection, numTumors);
 	_interactor->Start();
 }

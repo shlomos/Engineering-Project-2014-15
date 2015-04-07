@@ -190,7 +190,7 @@ int main(int argc, char* argv[])
 	lut->SetRange(0, 2);
 	lut->SetTableValue((vtkIdType)NOT_ACTIVE, 0, 0, 0, 0.0);
 	lut->SetTableValue((vtkIdType)FOREGROUND, 1, 0, 0, 0.5);
-	lut->SetTableValue((vtkIdType)BACKGROUND, 0, 0, 1, 0.5);
+	lut->SetTableValue((vtkIdType)BACKGROUND, 0, 0, 1, 0.1);
 	lut->Build();
 	mapperSel->SetLookupTable(lut);
 	mapperSel->SetInputData(selection);
