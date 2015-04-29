@@ -55,13 +55,13 @@ vtkSmartPointer<vtkActor> createCrosshair(double *size){
 	colors->SetName("Colors");
 
 	// Add the colors we created to the colors array
-	colors->InsertNextValue(0);
-	colors->InsertNextValue(0);
 	colors->InsertNextValue(255);
+	colors->InsertNextValue(255);
+	colors->InsertNextValue(0);
 
-	colors->InsertNextValue(0);
-	colors->InsertNextValue(0);
 	colors->InsertNextValue(255);
+	colors->InsertNextValue(255);
+	colors->InsertNextValue(0);
 
 	// Create the first line
 	vtkSmartPointer<vtkLine> line0 = vtkSmartPointer<vtkLine>::New();
@@ -190,7 +190,7 @@ int main(int argc, char* argv[])
 	lut->SetRange(0, 2);
 	lut->SetTableValue((vtkIdType)NOT_ACTIVE, 0, 0, 0, 0.0);
 	lut->SetTableValue((vtkIdType)FOREGROUND, 1, 0, 0, 0.5);
-	lut->SetTableValue((vtkIdType)BACKGROUND, 0, 0, 1, 0.1);
+	lut->SetTableValue((vtkIdType)BACKGROUND, 0, 0, 1, 0.3);
 	lut->Build();
 	mapperSel->SetLookupTable(lut);
 	mapperSel->SetInputData(selection);

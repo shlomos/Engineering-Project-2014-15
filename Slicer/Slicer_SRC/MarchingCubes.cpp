@@ -1,80 +1,35 @@
 #include "MarchingCubes.h"
 
-MarchingCubes::MarchingCubes(vtkStructuredPoints* selection, std::string inputName, int numTumors) {
-
-	this->_selection = selection;
-	_numTumors = numTumors;
-	_surface = vtkMarchingCubes::New();
+MarchingCubes::MarchingCubes(std::string inputName) {
 	_renderer = vtkRenderer::New();
 	_renderWindow = vtkRenderWindow::New();
 	_mapper = vtkPolyDataMapper::New();
 	_actor = vtkActor::New();
 	_inputName = inputName;
-	_mask = vtkImageMaskBits::New();
 	_interactor = vtkRenderWindowInteractor::New();
 
-	//filter segblock, only SEGMENTATION will be presented
-	_mask->AddInputData(_selection);
-	_mask->SetMask(static_cast<unsigned int>(FOREGROUND));
-	_mask->SetOperationToAnd();
+	
+}
 
+void MarchingCubes::Update3DWindow(vtkStructuredPoints* selection, int numTumors){
+	_selection = selection;
+	//filter segblock, only SEGMENTATION will be presented
+	vtkSmartPointer<vtkImageMaskBits>  mask = vtkImageMaskBits::New();
+	mask->AddInputData(_selection);
+	mask->SetMask(static_cast<unsigned int>(FOREGROUND));
+	mask->SetOperationToAnd();
+	vtkSmartPointer<vtkMarchingCubes>  surface = vtkMarchingCubes::New();
 	double bounds[6];
 	_selection->GetBounds(bounds);
-	_surface->SetInputConnection(_mask->GetOutputPort());
-	_surface->ComputeNormalsOn();
-	_surface->ComputeScalarsOff();
-	_surface->SetValue(0, ISO_VALUE);
-	_surface->Update();
-	_renderer->SetBackground(0, 0, 0.2);
+	surface->SetInputConnection(mask->GetOutputPort());
+	surface->ComputeNormalsOn();
+	surface->ComputeScalarsOff();
+	surface->SetValue(0, ISO_VALUE);
+	surface->Update();
+	vtkPolyData* mesh = surface->GetOutput();
 
-
-	vtkSmartPointer<myVtkInteractorStyleImage3D> myInteractorStyle =
-		vtkSmartPointer<myVtkInteractorStyleImage3D>::New();
-	_renderWindow->SetWindowName("Mesh Viewer");
-
-	_interactor->SetInteractorStyle(myInteractorStyle);
-	_interactor->CreateRepeatingTimer(UPDATE_SLICE_TIMER);
-
-	_interactor->SetRenderWindow(_renderWindow);
-	_interactor->Initialize();
-	_renderWindow->SetInteractor(_interactor);
-	
-	vtkSmartPointer<vtkLookupTable> lut = vtkSmartPointer<vtkLookupTable>::New();
-	lut->SetNumberOfTableValues(5);
-	lut->SetRange(0, 4);
-	lut->SetTableValue(0, 0.9, 0.9, 0.9, 1.0);
-	lut->SetTableValue(1, 0.9, 0.9, 0.9, 1.0);
-	lut->SetTableValue(2, 0, 1, 0, 1.0);
-	lut->SetTableValue(3, 1, 0, 0, 1.0);
-	lut->SetTableValue(4, 0, 0, 1, 1.0);
-	lut->Build();
-	vtkPolyData* mesh = _surface->GetOutput();
-
-
-	//try close holes:
-	//vtkSmartPointer<vtkFillHolesFilter> fillHolesFilter =
-	//	vtkSmartPointer<vtkFillHolesFilter>::New();
-	//fillHolesFilter->SetInputData(mesh);
-	//fillHolesFilter->SetHoleSize(1000.0);
-	//fillHolesFilter->Update();
-
-	// Make the triangle windong order consistent
-	//vtkSmartPointer<vtkPolyDataNormals> normals =
-	//	vtkSmartPointer<vtkPolyDataNormals>::New();
-	//normals->SetInputData(fillHolesFilter->GetOutput());
-	//normals->ConsistencyOn();
-	//normals->SplittingOff();
-	//normals->Update();
-
-	//end close holes
-
-	_mapper->SetScalarRange(0,4);
-	_mapper->SetLookupTable(lut);
-	//cout << "Number of points is: " << mesh->GetNumberOfPoints() << endl;
 	vtkSmartPointer<vtkUnsignedShortArray> mesh_colors =
 		vtkSmartPointer<vtkUnsignedShortArray>::New();
-	// Add the colors we created to the colors array	
-	//mesh_colors->SetNumberOfValues(normals->GetOutput()->GetNumberOfPoints());
 	mesh_colors->SetNumberOfValues(mesh->GetNumberOfPoints());
 	for (int i = 0; i < mesh->GetNumberOfPoints(); i++){
 		//in mesh, neutral is 1.
@@ -96,18 +51,73 @@ MarchingCubes::MarchingCubes(vtkStructuredPoints* selection, std::string inputNa
 	mesh = smoother->GetOutput();
 	_mapper->SetInputData(mesh);
 	//_mapper->SetScalarModeToUsePointData();
-	_mapper->Update();
+	if (_windowCreated){
+		((myVtkInteractorStyleImage3D*)_interactor->GetInteractorStyle())->SetNumTumors(numTumors);
+		_mapper->Update();
+	}
+	else{
+		//First time:	
+		_renderer->SetBackground(0, 0, 0.2);
 
-	_actor->SetMapper(_mapper);
-	_renderWindow->AddRenderer(_renderer);
-	_renderWindow->SetPosition(_renderWindow->GetScreenSize()[0]/2, 0);
-	_renderWindow->SetSize(_renderWindow->GetScreenSize()[0] / 2, _renderWindow->GetScreenSize()[1]-50);
-	myInteractorStyle->SetDefaultRenderer(_renderer);
-	myInteractorStyle->Modified();
-	_renderer->AddActor(_actor);
-	_renderWindow->SetCurrentCursor(VTK_CURSOR_CROSSHAIR);
-	_renderer->ResetCamera();
-	_renderWindow->Render();
-	myInteractorStyle->Initialize("Output.obj", inputName, this->_selection, numTumors);
-	_interactor->Start();
+		vtkSmartPointer<myVtkInteractorStyleImage3D> myInteractorStyle =
+			vtkSmartPointer<myVtkInteractorStyleImage3D>::New();
+		_renderWindow->SetWindowName("Mesh Viewer");
+
+		_interactor->SetInteractorStyle(myInteractorStyle);
+		_interactor->CreateRepeatingTimer(UPDATE_SLICE_TIMER);
+
+		_interactor->SetRenderWindow(_renderWindow);
+		_interactor->Initialize();
+		_renderWindow->SetInteractor(_interactor);
+
+		vtkSmartPointer<vtkLookupTable> lut = vtkSmartPointer<vtkLookupTable>::New();
+		lut->SetNumberOfTableValues(5);
+		lut->SetRange(0, 4);
+		lut->SetTableValue(0, 0.9, 0.9, 0.9, 1.0);
+		lut->SetTableValue(1, 0.9, 0.9, 0.9, 1.0);
+		lut->SetTableValue(2, 0, 1, 0, 1.0);
+		lut->SetTableValue(3, 1, 0, 0, 1.0);
+		lut->SetTableValue(4, 0, 0, 1, 1.0);
+		lut->Build();
+		
+		//try close holes:
+		//vtkSmartPointer<vtkFillHolesFilter> fillHolesFilter =
+		//	vtkSmartPointer<vtkFillHolesFilter>::New();
+		//fillHolesFilter->SetInputData(mesh);
+		//fillHolesFilter->SetHoleSize(1000.0);
+		//fillHolesFilter->Update();
+
+		// Make the triangle windong order consistent
+		//vtkSmartPointer<vtkPolyDataNormals> normals =
+		//	vtkSmartPointer<vtkPolyDataNormals>::New();
+		//normals->SetInputData(fillHolesFilter->GetOutput());
+		//normals->ConsistencyOn();
+		//normals->SplittingOff();
+		//normals->Update();
+
+		//end close holes
+
+		_mapper->SetScalarRange(0, 4);
+		_mapper->SetLookupTable(lut);
+		_mapper->Update();
+		// Add the colors we created to the colors array	
+		//mesh_colors->SetNumberOfValues(normals->GetOutput()->GetNumberOfPoints());
+		
+		_actor->SetMapper(_mapper);
+		_renderWindow->AddRenderer(_renderer);
+		_renderWindow->SetPosition(_renderWindow->GetScreenSize()[0] / 2, 0);
+		_renderWindow->SetSize(_renderWindow->GetScreenSize()[0] / 2, _renderWindow->GetScreenSize()[1] - 50);
+		myInteractorStyle->SetDefaultRenderer(_renderer);
+		myInteractorStyle->Modified();
+		_renderer->AddActor(_actor);
+		_renderWindow->SetCurrentCursor(VTK_CURSOR_CROSSHAIR);
+		_renderer->ResetCamera();
+		_renderWindow->Render();
+		myInteractorStyle->Initialize("Output.obj", _inputName, this->_selection);
+		_interactor->Start();
+	}
+
+}
+
+MarchingCubes::~MarchingCubes(){
 }

@@ -37,19 +37,18 @@
 class MarchingCubes {
 	
 public:
-	MarchingCubes(vtkStructuredPoints* selection, std::string inputName, int numTumors);
+	MarchingCubes(std::string inputName);
+	void Update3DWindow(vtkStructuredPoints* selection, int numTumors);
 	~MarchingCubes();
 	
 private:
-	vtkSmartPointer<vtkMarchingCubes>  _surface;
 	vtkSmartPointer<vtkRenderer>       _renderer;
 	vtkSmartPointer<vtkRenderWindow>   _renderWindow;
 	vtkSmartPointer<vtkRenderWindowInteractor> _interactor;
 	vtkSmartPointer<vtkPolyDataMapper> _mapper;
 	vtkSmartPointer<vtkActor>          _actor;
-	vtkSmartPointer<vtkImageMaskBits>  _mask;
 	std::string _inputName;
-	int _numTumors;
+	bool _windowCreated;
 
 	//vtkSmartPointer<vtkImageViewer2>   _viewer;
 	vtkStructuredPoints* _selection;

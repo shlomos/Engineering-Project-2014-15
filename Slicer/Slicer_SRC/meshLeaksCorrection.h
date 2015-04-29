@@ -300,7 +300,7 @@ public:
 		LabelShapeKeepNObjectsImageFilterType::Pointer labelShapeKeepNObjectsImageFilter = LabelShapeKeepNObjectsImageFilterType::New();
 		labelShapeKeepNObjectsImageFilter->SetInput(connector->GetOutput());
 		labelShapeKeepNObjectsImageFilter->SetBackgroundValue(0);
-		labelShapeKeepNObjectsImageFilter->SetNumberOfObjects(numTumors);
+		labelShapeKeepNObjectsImageFilter->SetNumberOfObjects(1);
 		labelShapeKeepNObjectsImageFilter->SetAttribute(LabelShapeKeepNObjectsImageFilterType::LabelObjectType::NUMBER_OF_PIXELS);
 		labelShapeKeepNObjectsImageFilter->Update();
 

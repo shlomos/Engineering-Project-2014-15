@@ -28,6 +28,7 @@
 #define NEDGES_FACTOR       1000
 #define XY_OPENCLOSE        5
 #define Z_OPENCLOSE         4
+#define DILATION_ST_SIZE	3
 #define NUM_ITER_OPENCLOSE  2
 #define SMOOTHING_FACTOR_XY 25.0
 #define SMOOTHING_FACTOR_Z	25.0

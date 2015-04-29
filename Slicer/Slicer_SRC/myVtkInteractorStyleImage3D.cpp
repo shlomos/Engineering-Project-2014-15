@@ -7,14 +7,18 @@ void myVtkInteractorStyleImage3D::SetStatusMapper(vtkTextMapper* statusMapper) {
 	_StatusMapper = statusMapper;
 }
 
-void myVtkInteractorStyleImage3D::Initialize(std::string outputName, std::string inputName, vtkStructuredPoints* selection, int numTumors){
+void myVtkInteractorStyleImage3D::SetNumTumors(int numTumors) {
+	_numTumors = numTumors;
+}
+
+void myVtkInteractorStyleImage3D::Initialize(std::string outputName, std::string inputName, vtkStructuredPoints* selection){
 	_drawSize = DEFAULT_DRAW_SIZE;
 	_lal = LeapAbstractionLayer::getInstance();
 	_outputName = outputName;
-	_numTumors = numTumors;
 	_inputName = inputName;
 	_hfMode = false;
 	_rotLock = false;
+	_foundLeaks = false;
 	_currSource = -1;
 	this->_selection = selection;
 	//Start movement:
@@ -57,6 +61,38 @@ typedef void(myVtkInteractorStyleImage3D::*workerFunction)();
 
 void myVtkInteractorStyleImage3D::RemoveLeaks(){
 	boost::mutex::scoped_lock scoped_lock(_canSegment_mutex);
+	if (!_foundLeaks){
+		cout << "Final segmentation had no leaks!" << endl;
+		vtkSmartPointer<vtkNIFTIImageWriter> niw = vtkSmartPointer<vtkNIFTIImageWriter>::New();
+		vtkStructuredPoints* saveMat = vtkStructuredPoints::New();
+		cout << "At filtering." << endl;
+		saveMat->DeepCopy(_selection);
+		vtkUnsignedShortArray* scalars = (vtkUnsignedShortArray*)(saveMat->GetPointData()->GetScalars());
+		for (int i = 0; i < saveMat->GetNumberOfPoints(); i++){
+			if (scalars->GetValue(i) == BACKGROUND){
+				scalars->SetValue(i, NOT_ACTIVE);
+			}
+		}
+		scalars->Modified();
+		//dilate:
+		cout << "at dilation" << endl;
+		vtkSmartPointer<vtkImageDilateErode3D> dilateErode =
+			vtkSmartPointer<vtkImageDilateErode3D>::New();
+		dilateErode->SetInputData(saveMat);
+		dilateErode->SetDilateValue(FOREGROUND);
+		dilateErode->SetErodeValue(NOT_ACTIVE);
+		dilateErode->SetKernelSize(DILATION_ST_SIZE, DILATION_ST_SIZE, 1);
+		dilateErode->ReleaseDataFlagOff();
+		dilateErode->Update();
+		cout << "finished dilation" << endl;
+
+		cout << "Saving..." << endl;
+		niw->SetInputData(dilateErode->GetOutput());
+		niw->SetFileName("correctedImage.nii.gz");
+		niw->Write();
+		cout << "Final segmentation was saved successfully!" << endl;
+		return;
+	}
 	cout << "Started fixing mesh!" << endl;
 	typedef double PixelType;
 	typedef unsigned short SegPixelType;
@@ -174,6 +210,26 @@ void myVtkInteractorStyleImage3D::RemoveLeaks(){
 	cout << "bedug 5" << endl;
 	SegImageType::Pointer outputImage = mlc.correctImage<SegImageType>(segInputImage, seedInputImage, outputContourImage, _numTumors);
 
+	//Here we should dilate:
+	cout << "at dilation" << endl;
+	typedef itk::BinaryBallStructuringElement<SegPixelType,3> StructuringElementType;
+	StructuringElementType structuringElement;
+	structuringElement.SetRadius(DILATION_ST_SIZE);
+	structuringElement.CreateStructuringElement();
+
+	typedef itk::BinaryDilateImageFilter<SegImageType, SegImageType, StructuringElementType>
+		BinaryDilateImageFilterType;
+
+	BinaryDilateImageFilterType::Pointer dilateFilter
+		= BinaryDilateImageFilterType::New();
+	dilateFilter->SetInput(outputImage);
+	dilateFilter->SetKernel(structuringElement);
+	dilateFilter->Update();
+	outputImage = dilateFilter->GetOutput();
+	cout << "finished dilation" << endl;
+
+	//dilation end.
+
 	typedef itk::ImageFileWriter<SegImageType> WriterType;
 	WriterType::Pointer writer = WriterType::New();
 	cout << "bedug 6" << endl;
@@ -190,56 +246,44 @@ void myVtkInteractorStyleImage3D::RemoveLeaks(){
 		exit(1);
 	}
 
-
-
 	typedef itk::ImageToVTKImageFilter<SegImageType> SegInvConverterType;
 	SegInvConverterType::Pointer correctionConverter = SegInvConverterType::New();
 	cout << "bedug 7" << endl;
 	correctionConverter->SetInput(outputImage);
 	correctionConverter->Update();
 	vtkSmartPointer<vtkImageData> vtkCorrectedImage = correctionConverter->GetOutput();
-	/*vtkSmartPointer<vtkImageToStructuredPoints> convertFilter =
-	vtkSmartPointer<vtkImageToStructuredPoints>::New();
-	convertFilter->SetInputData(correctionConverter->GetOutput());
-	convertFilter->Update();
-	this->_selection->DeepCopy(convertFilter->GetOutput());*/
-
+	vtkUnsignedShortArray* scalars = (vtkUnsignedShortArray*)(vtkCorrectedImage->GetPointData()->GetScalars());
+	vtkUnsignedShortArray* selection_scalars = (vtkUnsignedShortArray*)(_selection->GetPointData()->GetScalars());
+	for (int i = 0; i < _selection->GetNumberOfPoints(); i++){	
+		if (scalars->GetValue(i) != NOT_ACTIVE){
+			//cout << scalars->GetValue(i) << endl;
+			selection_scalars->SetValue(i, FOREGROUND);
+		}
+		else{
+			selection_scalars->SetValue(i, NOT_ACTIVE);
+		}
+	}
+	selection_scalars->Modified();
+	this->_selection->Modified();
 
 	cout << "bedug 8" << endl;
 	vtkSmartPointer<vtkPolyData> outputMesh = mlc.createAndSmoothSurface(vtkCorrectedImage, 50);
-	mlc.writePolyData(outputMesh, "final.vtk");
-	cout << "bedug 9" << endl;
-	// Create a mapper and actor
-	vtkSmartPointer<vtkPolyDataMapper> mapperE =
-		vtkSmartPointer<vtkPolyDataMapper>::New();
-	mapperE->SetInputData(outputMesh);
 
-	vtkSmartPointer<vtkActor> actorE =
-		vtkSmartPointer<vtkActor>::New();
-	actorE->SetMapper(mapperE);
-
-	// A renderer and render window
-	vtkSmartPointer<vtkRenderer> renderer =
-		vtkSmartPointer<vtkRenderer>::New();
-	vtkSmartPointer<vtkRenderWindow> renderWindow =
-		vtkSmartPointer<vtkRenderWindow>::New();
-	renderWindow->AddRenderer(renderer);
-
-	// An interactor
-	vtkSmartPointer<vtkRenderWindowInteractor> renderWindowInteractor =
-		vtkSmartPointer<vtkRenderWindowInteractor>::New();
-	renderWindowInteractor->SetRenderWindow(renderWindow);
-
-	// Add the actors to the scene
-	renderer->AddActor(actorE);
-	renderer->SetBackground(.1, .2, .3); // Background color dark blue
-
-	// Render
-	renderWindow->SetWindowName("Corrected Mesh");
-	renderWindow->Render();
-
-	// Begin mouse interaction
-	renderWindowInteractor->Start();
+	vtkUnsignedShortArray* meshScalars = vtkUnsignedShortArray::New();// (vtkUnsignedShortArray*)(outputMesh->GetPointData()->GetScalars());
+	meshScalars->SetNumberOfComponents(1);
+	meshScalars->SetNumberOfTuples(outputMesh->GetNumberOfPoints());
+	cout <<"outputMesh->GetNumberOfPoints()"<< outputMesh->GetNumberOfPoints() << endl;
+	for (int i = 0; i < outputMesh->GetNumberOfPoints(); i++){
+		meshScalars->SetValue(i, NOT_ACTIVE);
+	}
+	meshScalars->SetName("mesh_colors");
+	meshScalars->Modified(); 
+	outputMesh->GetPointData()->RemoveArray("mesh_colors");
+	outputMesh->GetPointData()->SetScalars(meshScalars);
+	outputMesh->GetPointData()->Modified();
+	cout << "output values: " << meshScalars->GetValue(0) << endl;
+	mapper->GetInput()->DeepCopy(outputMesh);
+	mapper->Modified();
 	cout << "We won!" << endl;
 }
 
@@ -405,26 +449,10 @@ void myVtkInteractorStyleImage3D::OnKeyDown() {
 	else if (key.compare("a") == 0) {
 		cout << "a pressed!" << endl;
 		if (_rotLock){
-			_rotLock = false;
-			int x = this->Interactor->GetEventPosition()[0];
-			int y = this->Interactor->GetEventPosition()[1];
-			this->FindPokedRenderer(x, y);
-			if (this->CurrentRenderer == NULL)
-			{
-				cout << "Renderer is null" << endl;
-				return;
-			}
-			this->GrabFocus(this->EventCallbackCommand);
-			this->StartRotate();
+			StartInteraction3D(true);
 		}
 		else{
-			this->EndRotate();
-			this->Interactor->CreateRepeatingTimer(UPDATE_SLICE_TIMER);
-			if (this->Interactor)
-			{
-				this->ReleaseFocus();
-			}
-			_rotLock = true;
+			StartInteraction3D(false);
 		}
 	}
 	else if (key.compare("r") == 0) {
@@ -435,6 +463,7 @@ void myVtkInteractorStyleImage3D::OnKeyDown() {
 	}
 	else if (key.compare("f") == 0) {
 		//leak
+		_foundLeaks = true;
 		this->MakeAnnotation(3);
 	}
 	else if (key.compare("b") == 0) {
@@ -452,6 +481,31 @@ void myVtkInteractorStyleImage3D::OnKeyDown() {
 		//this->UpdateContext();
 	}
 	return;
+}
+
+void myVtkInteractorStyleImage3D::StartInteraction3D(bool state){
+	if (state){
+		_rotLock = false;
+		int x = this->Interactor->GetEventPosition()[0];
+		int y = this->Interactor->GetEventPosition()[1];
+		this->FindPokedRenderer(x, y);
+		if (this->CurrentRenderer == NULL)
+		{
+			cout << "Renderer is null" << endl;
+			return;
+		}
+		this->GrabFocus(this->EventCallbackCommand);
+		this->StartRotate();
+	}
+	else{
+		this->EndRotate();
+		this->Interactor->CreateRepeatingTimer(UPDATE_SLICE_TIMER);
+		if (this->Interactor)
+		{
+			this->ReleaseFocus();
+		}
+		_rotLock = true;
+	}
 }
 
 void myVtkInteractorStyleImage3D::OnMouseWheelForward() {
