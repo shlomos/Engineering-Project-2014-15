@@ -59,6 +59,9 @@ public:
 	void SetImage(vtkStructuredPoints* CT_image, vtkStructuredPoints* segmentation);
 	vtkStructuredPoints* PerformSegmentation();
 	void init_tumors();
+	int getNumTumors(){
+		return _tumors.size();
+	}
 	vtkIdType ComputePointId(int i, int j, int k);
 	bool AddPointToTumor(Tumor::Point3D point);
 	float g_function(int, int);

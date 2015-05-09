@@ -34,7 +34,6 @@
 #include <vtkPointData.h>
 #include <vtkImageActor.h>
 #include <vtkImageMapper3D.h>
-#include <vtkExtractVOI.h>
 #include <vtkStructuredPointsWriter.h>
 #include <vtkCellPicker.h>
 #include <vtkPointPicker.h>
@@ -44,6 +43,7 @@
 #include <algorithm>
 #include <vtkCamera.h>
 #include <sstream>
+#include <vtkImageCast.h>
 #include "GrowCut.h"
 #include "MarchingCubes.h"
 #include "LeapAbstractionLayer.h" 
@@ -81,7 +81,6 @@ public:
 	static myVtkInteractorStyleImage* New();
 	virtual ~myVtkInteractorStyleImage();
 	vtkTypeMacro(myVtkInteractorStyleImage, vtkInteractorStyleImage);
-	vtkSmartPointer<vtkCallbackCommand> leapCallback;
 	//float _x_position, _y_position, _z_position; // TODO: create getters and setters and move to protected.
 	vtkSmartPointer<vtkUnsignedShortArray> _selection_scalars;
 
@@ -99,18 +98,14 @@ protected:
 	int _drawSize;
 	vtkSmartPointer<vtkImageActor> _selection_actor;
 	vtkStructuredPoints* _CT_image;
+	std::string _inputName;
 	bool _hfMode;
 	//bool _isSliceLocked;
 	boost::mutex _canSegment_mutex;
-	virtual void SetInteractor(vtkRenderWindowInteractor* interactor);// method I overrode. 
-	static void ProcessLeapEvents(vtkObject* object,
-		unsigned long event,
-		void* clientdata,
-		void* calldata);
 
 public:
 	myVtkInteractorStyleImage();
-	void SetImageViewer(vtkImageViewer2* imageViewer, std::string outputName, vtkSmartPointer<vtkImageActor> selection_actor, vtkStructuredPoints* CT_image);
+	void SetImageViewer(vtkImageViewer2* imageViewer, std::string outputName, std::string inputName, vtkSmartPointer<vtkImageActor> selection_actor, vtkStructuredPoints* CT_image);
 	void SetStatusMapper(vtkTextMapper* statusMapper);
 	void doSegment();
 	//void setSlice(int slice);
@@ -127,13 +122,13 @@ protected:
 	void MoveSliceBackward();
 	void ToggleOrientation();
 	void WriteToFile();
-	void translateToStructuredPoints(vtkUnstructuredGrid* component, vtkStructuredPoints* temp);
 	void LoadFromFile();
 	void marchingCubes();
 	void ResetAll();
 	virtual void OnKeyDown();
 	virtual void OnKeyUp();
 	virtual void OnMouseMove();
+	virtual void OnTimer();
 	virtual void OnMouseWheelForward();
 	virtual void OnMouseWheelBackward();
 };

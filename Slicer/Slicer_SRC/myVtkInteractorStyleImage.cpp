@@ -1,56 +1,22 @@
 #include "myVtkInteractorStyleImage.h"
-#include <vtkRendererCollection.h>
-#include <vtkPolyData.h>
-#include <vtkCellData.h>
-#include <vtkRegularPolygonSource.h>
-#include <vtkPolyData.h>
-#include <vtkSmartPointer.h>
-#include <vtkPolyDataMapper.h>
-#include <vtkActor.h>
-#include <vtkRenderWindow.h>
-#include <vtkRenderer.h>
-#include <vtkRenderWindowInteractor.h>
-#include "constants.h"
-#include <vtkDataSetMapper.h>
-#include <vtkStructuredPoints.h>
-#include <vtkCell.h>
-#include <vtkPointData.h>
-#include <vtkImageActor.h>
-#include <vtkImageMapper3D.h>
-#include <vtkExtractVOI.h>
-#include <vtkStructuredPointsWriter.h>
-#include <vtkCellPicker.h>
-#include <vtkPointPicker.h>
-#include <vtkImageMapToColors.h>
-#include <vtkImageOpenClose3D.h>
-#include <vtkConnectivityFilter.h>
-#include <vtkPropPicker.h>
-#include <vtkImageEuclideanDistance.h>
-#include <algorithm>
-#include <vtkCamera.h>
-#include <sstream>
-#include <vtkDelaunay3D.h>
-#include <vtkUnsignedShortArray.h>
-
 
 myVtkInteractorStyleImage::myVtkInteractorStyleImage()
 {
-	leapCallback = vtkSmartPointer<vtkCallbackCommand>::New();
-	leapCallback->SetCallback(myVtkInteractorStyleImage::ProcessLeapEvents);
 	//_graph_cut = new ImageGraphCut();
 	_selection_scalars = vtkSmartPointer<vtkUnsignedShortArray>::New();
 	this->GrabFocus(this->EventCallbackCommand);
 }
-void myVtkInteractorStyleImage::SetImageViewer(vtkImageViewer2* imageViewer, std::string outputName, vtkSmartPointer<vtkImageActor> selection_actor, vtkStructuredPoints* CT_image) {
+void myVtkInteractorStyleImage::SetImageViewer(vtkImageViewer2* imageViewer, std::string outputName, std::string inputName, vtkSmartPointer<vtkImageActor> selection_actor, vtkStructuredPoints* CT_image) {
 	_ImageViewer = imageViewer;
 	_ImageViewer->SetSliceOrientation(SLICE_ORIENTATION_XY);
+	_ImageViewer->SetSlice(0);
 	_orientation = -SLICE_ORIENTATION_XY;
 	_lal = LeapAbstractionLayer::getInstance();
 	_lal->setMaxSlice(imageViewer->GetSliceMax());
 	_drawSize = DEFAULT_DRAW_SIZE;
-	leapCallback->SetClientData(this);
 	//_Slice = _MinSlice;
 	_outputName = outputName;
+	_inputName = inputName;
 	_hfMode = false;
 	//_isSliceLocked = false;
 	//_isPainting = false;
@@ -58,6 +24,7 @@ void myVtkInteractorStyleImage::SetImageViewer(vtkImageViewer2* imageViewer, std
 	_CT_image = CT_image;
 	//this->GrabFocus(this->EventCallbackCommand);
 	_grow_cut = new GrowCut();
+	_marching_cubes = new MarchingCubes(_inputName);
 	//cout << "Slicer: Min = " << _MinSlice << ", Max = " << _MaxSlice << ", Orientation: " << _orientation << std::endl;
 	_selection_scalars->SetNumberOfValues(((vtkStructuredPoints*)(((vtkImageMapToColors*)_selection_actor->GetMapper()->GetInputAlgorithm()))->GetInput())->GetNumberOfPoints());
 
@@ -78,8 +45,8 @@ void myVtkInteractorStyleImage::SetStatusMapper(vtkTextMapper* statusMapper) {
 //	return this->_MaxSlice;
 //}
 void myVtkInteractorStyleImage::MoveSliceForward() {
-	if (_lal->getSlice() < _lal->getMaxSlice()) {
-		_lal->setSlice(_lal->getSlice() + 1);
+	if (_ImageViewer->GetSlice() < _lal->getMaxSlice()) {
+		_lal->setSlice(_ImageViewer->GetSlice() + 1);
 		cout << "MoveSliceForward::Slice = " << _lal->getSlice() << std::endl;
 		_ImageViewer->SetSlice(_lal->getSlice());
 		int displayExtent[6];
@@ -91,8 +58,8 @@ void myVtkInteractorStyleImage::MoveSliceForward() {
 	}
 }
 void myVtkInteractorStyleImage::MoveSliceBackward() {
-	if (_lal->getSlice() > 0) {
-		_lal->setSlice(_lal->getSlice() - 1);
+	if (_ImageViewer->GetSlice() > 0) {
+		_lal->setSlice(_ImageViewer->GetSlice() - 1);
 		cout << "MoveSliceBackward::Slice = " << _lal->getSlice() << std::endl;
 		_ImageViewer->SetSlice(_lal->getSlice());
 		int displayExtent[6];
@@ -132,16 +99,18 @@ void myVtkInteractorStyleImage::LoadFromFile(){
 	vtkSmartPointer<vtkStructuredPointsReader> sLoader =
 		vtkSmartPointer<vtkStructuredPointsReader>::New();
 	sLoader->SetFileName(filename.c_str());
-	cout << "Reading, please wait..." << endl;
+	cout << sLoader->GetOutput()->GetScalarType() << endl;
 	sLoader->Update();
+	vtkImageCast* imagecast = vtkImageCast::New();
+	imagecast->SetInputData(sLoader->GetOutput());
+	imagecast->SetOutputScalarTypeToUnsignedShort();
+	imagecast->Update();
+	//sLoader->GetOutput()->SetScalarType(VTK_UNSIGNED_SHORT, sLoader->GetOutput()->GetInformation());
+	cout << "Reading, please wait..." << endl;
 	vtkImageMapToColors* mapper = (vtkImageMapToColors*)_selection_actor->GetMapper()->GetInputAlgorithm();
-	vtkUnsignedShortArray* temp = (vtkUnsignedShortArray*)(sLoader->GetOutput()->GetPointData()->GetScalars());
-	this->_selection_scalars->DeepCopy(temp);
-	((vtkStructuredPoints*)(mapper->GetInput()))->GetPointData()->SetScalars(this->_selection_scalars);
-	cout << "Updating view, just a little longer..." << endl;
-	this->_selection_scalars->Modified();
-	this->_selection_actor->Modified();
-	cout << "Loaded " << filename << " succesfully!" << endl;
+	mapper->SetInputData((vtkStructuredPoints*)imagecast->GetOutput());
+	mapper->Update();
+	mapper->Modified();
 }
 
 void myVtkInteractorStyleImage::ResetAll(){
@@ -252,69 +221,19 @@ void myVtkInteractorStyleImage::WriteToFile() {
 	cout << "Done." << endl;
 }
 
-void myVtkInteractorStyleImage::translateToStructuredPoints(vtkUnstructuredGrid* component, vtkStructuredPoints* temp){
-	vtkPoints* compoPoints = component->GetPoints();
-
-	vtkPointData* pointData = temp->GetPointData();
-	vtkUnsignedShortArray* selection_scalars = (vtkUnsignedShortArray*)pointData->GetScalars();
-	vtkPointData* cPointData = component->GetPointData();
-	vtkUnsignedShortArray* c_selection_scalars = (vtkUnsignedShortArray*)cPointData->GetScalars();
-
-	for (int i = 0; i < compoPoints->GetNumberOfPoints(); i++){
-		if (c_selection_scalars->GetValue(i) != c_selection_scalars->GetValue(max(0, i - 1))){
-			cout << c_selection_scalars->GetValue(i) << endl;
-		}
-		selection_scalars->SetValue(i, c_selection_scalars->GetValue(i));
-	}
-	selection_scalars->Modified();
-}
-
 typedef void(myVtkInteractorStyleImage::*workerFunction)();
 
 void myVtkInteractorStyleImage::doSegment() {
 	boost::mutex::scoped_lock scoped_lock(_canSegment_mutex);
-
 	vtkSmartPointer<vtkStructuredPoints> selection_structured_points = (vtkStructuredPoints*)((vtkImageMapToColors*)_selection_actor->GetMapper()->GetInputAlgorithm())->GetInput();
-
-	vtkPointData* cellData1 = selection_structured_points->GetPointData();
-	vtkSmartPointer<vtkUnsignedShortArray> sel_scalars_copy = vtkSmartPointer<vtkUnsignedShortArray>::New();
-	sel_scalars_copy->DeepCopy(this->_selection_scalars);
-	cellData1->SetScalars(sel_scalars_copy);
-
-	cellData1->GetScalars()->Modified();
-	cellData1->Modified();
-	selection_structured_points->Modified();
-
-	//vtkSmartPointer<vtkStructuredPoints> selection_structured_points_copy = vtkSmartPointer<vtkStructuredPoints>::New();
-	//vtkStructuredPoints* output = vtkSmartPointer<vtkStructuredPoints>::New();
-
-	// perform deep copy, in order to seperate between the segmentation given by the user, and the one computed by the machine
-	//selection_structured_points_copy->DeepCopy(selection_structured_points);
-
-	//_graph_cut->SetImage(selection_structured_points_copy, _CT_image);
-	//output = _graph_cut->PerformSegmentation();
-
 	_grow_cut->SetImage(_CT_image, selection_structured_points);
 	_grow_cut->PerformSegmentation();
-
-	//selection_structured_points = output;
-	//vtkSmartPointer<vtkImageOpenClose3D> openClose =
-	//	vtkSmartPointer<vtkImageOpenClose3D>::New();
-	//openClose->SetInputData(selection_structured_points);
-	//openClose->SetOpenValue(NOT_ACTIVE);
-	//openClose->SetCloseValue(FOREGROUND);
-	//openClose->SetKernelSize(XY_OPENCLOSE, XY_OPENCLOSE, Z_OPENCLOSE);
-	//openClose->ReleaseDataFlagOff();
-	//openClose->Update();
-
-	//((vtkImageMapToColors*)_selection_actor->GetMapper()->GetInputAlgorithm())->SetInputData(selection_structured_points);
-	((vtkImageMapToColors*)_selection_actor->GetMapper()->GetInputAlgorithm())->SetInputData(selection_structured_points);
 }
 
 void myVtkInteractorStyleImage::marchingCubes() {
 	cout << "in marchingCubes() " << endl;
 	vtkStructuredPoints* selection_structured_points = (vtkStructuredPoints*)((vtkImageMapToColors*)_selection_actor->GetMapper()->GetInputAlgorithm())->GetInput();
-	_marching_cubes = new MarchingCubes(selection_structured_points);
+	_marching_cubes->Update3DWindow(selection_structured_points, _grow_cut->getNumTumors());
 	cout << "End of marchingCubes ctor" << endl;
 
 }
@@ -392,6 +311,214 @@ void myVtkInteractorStyleImage::OnKeyDown() {
 	// forward event
 }
 
+void myVtkInteractorStyleImage::OnTimer(){
+	vtkActor* cross_actor = _ImageViewer->GetRenderer()->GetActors()->GetLastActor();
+	vtkSmartPointer<vtkImageMapToColors> selection_mapper = (vtkImageMapToColors*)_selection_actor->GetMapper()->GetInputAlgorithm();
+	vtkSmartPointer<vtkStructuredPoints> selection_structured_points = (vtkStructuredPoints *)selection_mapper->GetInput();
+
+	int ijk[3];
+	_lal->getUpdate(ijk);
+	if (ijk[0] != -1){
+		cout << "Shift pressed" << endl;
+		_ImageViewer->SetSliceOrientation(SLICE_ORIENTATION_XY);
+		_ImageViewer->SetSlice(ijk[2]);
+		int displayExtent[6];
+		_ImageViewer->GetImageActor()->GetDisplayExtent(displayExtent);
+		_selection_actor->SetDisplayExtent(displayExtent);
+		SetCrossHair(ijk[0], ijk[1]);
+		std::string msg = StatusMessage::Format(ijk[2], _lal->getMaxSlice(), _ImageViewer->GetSliceOrientation());
+		_StatusMapper->SetInput(msg.c_str());
+		_lal->RequestUpdate(-1, -1, -1);
+	}
+	// do noting if not in focus
+	HWND forground = GetForegroundWindow();
+	if (forground) {
+		char window_title[256];
+		GetWindowText(forground, window_title, 256);
+
+		if (strcmp("Slicer", window_title)) {
+			// render
+			cross_actor->GetMapper()->Update();
+			_selection_actor->GetMapper()->Update();
+			_ImageViewer->Render();
+			return;
+		}
+	}
+
+	double* size = selection_structured_points->GetBounds();
+	// changing the crosshair
+	vtkSmartPointer<vtkPoints> new_pts =
+		vtkSmartPointer<vtkPoints>::New();
+	double* temp = redrawCrossHair();
+	double cross_1 = temp[0];
+	double cross_2 = temp[1];
+	double cross_3 = temp[2];
+	delete temp;
+
+	// When SHIFT key is pressed, udpate slice
+	if (Interactor->GetShiftKey() || (_hfMode && !_lal->getSliceLock())){
+		cout << "Shift pressed" << endl;
+		_ImageViewer->SetSlice(_lal->getSlice());
+		int displayExtent[6];
+		_ImageViewer->GetImageActor()->GetDisplayExtent(displayExtent);
+		_selection_actor->SetDisplayExtent(displayExtent);
+		std::string msg = StatusMessage::Format(_lal->getSlice(), _lal->getMaxSlice(), _ImageViewer->GetSliceOrientation());
+		_StatusMapper->SetInput(msg.c_str());
+	}
+
+	int *selExt = selection_structured_points->GetExtent();
+
+	unsigned short color = 3;
+	if (Interactor->GetControlKey() && Interactor->GetAltKey()){
+		color = NOT_ACTIVE;
+		// change the crosshair's color
+		vtkSmartPointer<vtkPolyData> pd = (vtkPolyData *)((vtkPolyDataMapper*)(cross_actor->GetMapper())->GetInputAsDataSet());
+		vtkUnsignedCharArray* da = (vtkUnsignedCharArray*)pd->GetCellData()->GetScalars();
+		da->SetValue(0, 0);
+		da->SetValue(1, 255);
+		da->SetValue(2, 0);
+		da->SetValue(3, 0);
+		da->SetValue(4, 255);
+		da->SetValue(5, 0);
+	}
+	else if (Interactor->GetControlKey() || (_hfMode && _lal->getPainting())) {
+		color = FOREGROUND;
+		// change the crosshair's color
+		vtkSmartPointer<vtkPolyData> pd = (vtkPolyData *)((vtkPolyDataMapper*)(cross_actor->GetMapper())->GetInputAsDataSet());
+		vtkUnsignedCharArray* da = (vtkUnsignedCharArray*)pd->GetCellData()->GetScalars();
+		da->SetValue(0, 255);
+		da->SetValue(1, 0);
+		da->SetValue(2, 0);
+		da->SetValue(3, 255);
+		da->SetValue(4, 0);
+		da->SetValue(5, 0);
+	}
+	else if (Interactor->GetAltKey()){
+		color = BACKGROUND;
+		// change the crosshair's color
+		vtkSmartPointer<vtkPolyData> pd = (vtkPolyData *)((vtkPolyDataMapper*)(cross_actor->GetMapper())->GetInputAsDataSet());
+		vtkUnsignedCharArray* da = (vtkUnsignedCharArray*)pd->GetCellData()->GetScalars();
+		da->SetValue(0, 0);
+		da->SetValue(1, 0);
+		da->SetValue(2, 255);
+		da->SetValue(3, 0);
+		da->SetValue(4, 0);
+		da->SetValue(5, 255);
+	}
+	else{
+		// change the crosshair's color
+		vtkSmartPointer<vtkPolyData> pd = (vtkPolyData *)((vtkPolyDataMapper*)(cross_actor->GetMapper())->GetInputAsDataSet());
+		vtkUnsignedCharArray* da = (vtkUnsignedCharArray*)pd->GetCellData()->GetScalars();
+		da->SetValue(0, 255);
+		da->SetValue(1, 255);
+		da->SetValue(2, 0);
+		da->SetValue(3, 255);
+		da->SetValue(4, 255);
+		da->SetValue(5, 0);
+	}
+	if (color < 3){
+		vtkPointData* cellData = selection_structured_points->GetPointData();
+		vtkUnsignedShortArray* selection_scalars = (vtkUnsignedShortArray*)cellData->GetScalars();//_selection_scalars;
+		//selection_scalars->SetNumberOfValues(selection_structured_points->GetNumberOfPoints());
+
+		double x[3];
+		int ijk[3];
+		double pCoord[3];
+		int ijk2[3];
+		int minX, maxX, minY, maxY;
+		switch (_ImageViewer->GetSliceOrientation()) {
+		case SLICE_ORIENTATION_YZ:
+			cout << "case 0" << endl;
+			x[0] = cross_3;
+			x[1] = cross_2;
+			x[2] = cross_1;
+			selection_structured_points->ComputeStructuredCoordinates(x, ijk, pCoord);
+			ijk[0] = _ImageViewer->GetSlice();//_lal->getSlice();
+			ijk2[1] = 0;
+			ijk2[2] = 0;
+			ijk2[0] = ijk[0];
+			minX = std::max(0, ijk[2] - _drawSize);
+			maxX = std::min(ijk[2] + _drawSize, selExt[5]);
+			minY = std::max(ijk[1] - _drawSize, 0);
+			maxY = std::min(ijk[1] + _drawSize, selExt[3]);
+			for (int i = minX; i < maxX; i++){
+				ijk2[2] = i;
+				for (int j = minY; j < maxY; j++){
+					ijk2[1] = j;
+					vtkIdType cellId = selection_structured_points->ComputePointId(ijk2);
+					//cout << ijk2[0] << ":" << ijk2[1] << ":" << ijk2[2] << endl;
+					selection_scalars->SetValue(cellId, color);
+				}
+			}
+			break;
+		case SLICE_ORIENTATION_XZ:
+			cout << "case 1" << endl;
+			x[0] = cross_1;
+			x[1] = cross_3;
+			x[2] = cross_2;
+			selection_structured_points->ComputeStructuredCoordinates(x, ijk, pCoord);
+			ijk[1] = _ImageViewer->GetSlice();
+			ijk2[0] = 0;
+			ijk2[1] = ijk[1];
+			ijk2[2] = 0;
+			minX = std::max(0, ijk[0] - _drawSize);
+			maxX = std::min(ijk[0] + _drawSize, selExt[1]);
+			minY = std::max(ijk[2] - _drawSize, 0);
+			maxY = std::min(ijk[2] + _drawSize, selExt[5]);
+			for (int i = minX; i < maxX; i++){
+				ijk2[0] = i;
+				for (int j = minY; j < maxY; j++){
+					ijk2[2] = j;
+					vtkIdType cellId = selection_structured_points->ComputePointId(ijk2);
+					//cout << ijk2[0] << ":" << ijk2[1] << ":" << ijk2[2] << endl;
+					selection_scalars->SetValue(cellId, color);
+				}
+			}
+			break;
+		case SLICE_ORIENTATION_XY:
+			x[0] = cross_1;
+			x[1] = cross_2;
+			x[2] = cross_3;
+			selection_structured_points->ComputeStructuredCoordinates(x, ijk, pCoord);
+			ijk[2] = _ImageViewer->GetSlice();
+			ijk2[0] = 0;
+			ijk2[1] = 0;
+			ijk2[2] = ijk[2];
+			minX = std::max(0, ijk[0] - _drawSize);
+			maxX = std::min(ijk[0] + _drawSize, selExt[1]);
+			minY = std::max(ijk[1] - _drawSize, 0);
+			maxY = std::min(ijk[1] + _drawSize, selExt[3]);
+			for (int i = minX; i < maxX; i++){
+				ijk2[0] = i;
+				for (int j = minY; j < maxY; j++){
+					ijk2[1] = j;
+					vtkIdType cellId = selection_structured_points->ComputePointId(ijk2);
+					//cout << ijk2[0] << ":" << ijk2[1] << ":" << ijk2[2] << endl;
+					selection_scalars->SetValue(cellId, color);
+				}
+			}
+			break;
+		}
+
+		//Update the underlying data object.
+		cellData->SetScalars(selection_scalars);
+
+		//Update the underlying data object.
+		cellData->GetScalars()->Modified();
+
+		////todo: remove the following lines if possible!
+		cellData->Modified();
+		selection_structured_points->Modified();
+		selection_mapper->Modified();
+	}
+
+	// render
+	cross_actor->GetMapper()->Update();
+	_selection_actor->GetMapper()->Update();
+	_ImageViewer->Render();
+}
+
+
 void myVtkInteractorStyleImage::OnMouseWheelForward() {
 	//std::cout << "Scrolled mouse wheel forward." << std::endl;
 	MoveSliceForward();
@@ -408,392 +535,11 @@ void myVtkInteractorStyleImage::OnMouseWheelBackward() {
 	// in case another interactorstyle is used (e.g. trackballstyle, ...)
 	// vtkInteractorStyleImage::OnMouseWheelBackward();
 }
-void myVtkInteractorStyleImage::SetInteractor(vtkRenderWindowInteractor *i)
-{
-	if (i == this->Interactor)
-	{
-		return;
-	}
-	// if we already have an Interactor then stop observing it
-	if (this->Interactor)
-	{
-		this->Interactor->RemoveObserver(this->EventCallbackCommand);
-	}
-	this->Interactor = i;
-	// add observers for each of the events handled in ProcessEvents
-	if (i)
-	{
-		i->AddObserver(vtkCommand::EnterEvent,
-			this->EventCallbackCommand,
-			this->Priority);
-		i->AddObserver(vtkCommand::LeaveEvent,
-			this->EventCallbackCommand,
-			this->Priority);
-		i->AddObserver(vtkCommand::MouseMoveEvent,
-			this->EventCallbackCommand,
-			this->Priority);
-		i->AddObserver(vtkCommand::LeftButtonPressEvent,
-			this->EventCallbackCommand,
-			this->Priority);
-		i->AddObserver(vtkCommand::LeftButtonReleaseEvent,
-			this->EventCallbackCommand,
-			this->Priority);
-		i->AddObserver(vtkCommand::MiddleButtonPressEvent,
-			this->EventCallbackCommand,
-			this->Priority);
-		i->AddObserver(vtkCommand::MiddleButtonReleaseEvent,
-			this->EventCallbackCommand,
-			this->Priority);
-		i->AddObserver(vtkCommand::RightButtonPressEvent,
-			this->EventCallbackCommand,
-			this->Priority);
-		i->AddObserver(vtkCommand::RightButtonReleaseEvent,
-			this->EventCallbackCommand,
-			this->Priority);
-		i->AddObserver(vtkCommand::MouseWheelForwardEvent,
-			this->EventCallbackCommand,
-			this->Priority);
-		i->AddObserver(vtkCommand::MouseWheelBackwardEvent,
-			this->EventCallbackCommand,
-			this->Priority);
-		i->AddObserver(vtkCommand::ExposeEvent,
-			this->EventCallbackCommand,
-			this->Priority);
-		i->AddObserver(vtkCommand::ConfigureEvent,
-			this->EventCallbackCommand,
-			this->Priority);
-		i->AddObserver(vtkCommand::TimerEvent,
-			this->leapCallback,
-			this->Priority);
-		i->AddObserver(vtkCommand::KeyPressEvent,
-			this->EventCallbackCommand,
-			this->Priority);
-		i->AddObserver(vtkCommand::KeyReleaseEvent,
-			this->EventCallbackCommand,
-			this->Priority);
-		i->AddObserver(vtkCommand::CharEvent,
-			this->EventCallbackCommand,
-			this->Priority);
-		i->AddObserver(vtkCommand::DeleteEvent,
-			this->EventCallbackCommand,
-			this->Priority);
-		i->AddObserver(vtkCommand::TDxMotionEvent,
-			this->EventCallbackCommand,
-			this->Priority);
-		i->AddObserver(vtkCommand::TDxButtonPressEvent,
-			this->EventCallbackCommand,
-			this->Priority);
-		i->AddObserver(vtkCommand::TDxButtonReleaseEvent,
-			this->EventCallbackCommand,
-			this->Priority);
-	}
-	this->EventForwarder->SetTarget(this->Interactor);
-	if (this->Interactor)
-	{
-		this->AddObserver(vtkCommand::StartInteractionEvent, this->EventForwarder);
-		this->AddObserver(vtkCommand::EndInteractionEvent, this->EventForwarder);
-	}
-	else
-	{
-		this->RemoveObserver(this->EventForwarder);
-	}
-}
-void myVtkInteractorStyleImage::ProcessLeapEvents(vtkObject* object, unsigned long event, void* clientdata, void* callData){
-	//cout << "Got a leap event!"<< endl;
-	vtkSmartPointer<myVtkInteractorStyleImage> intStyle =
-		reinterpret_cast<myVtkInteractorStyleImage*>(clientdata);
-	vtkActor* cross_actor = intStyle->_ImageViewer->GetRenderer()->GetActors()->GetLastActor();
-	vtkSmartPointer<vtkImageMapToColors> selection_mapper = (vtkImageMapToColors*)intStyle->_selection_actor->GetMapper()->GetInputAlgorithm();
-	vtkSmartPointer<vtkStructuredPoints> selection_structured_points = (vtkStructuredPoints *)selection_mapper->GetInput();
-
-
-	int ijk[3];
-	intStyle->_lal->getUpdate(ijk);
-	if (ijk[0] != -1){
-		cout << "Shift pressed" << endl;
-		intStyle->_ImageViewer->SetSliceOrientation(SLICE_ORIENTATION_XY);
-		intStyle->_ImageViewer->SetSlice(ijk[2]);
-		int displayExtent[6];
-		intStyle->_ImageViewer->GetImageActor()->GetDisplayExtent(displayExtent);
-		intStyle->_selection_actor->SetDisplayExtent(displayExtent);
-		intStyle->SetCrossHair(ijk[0], ijk[1]);
-		std::string msg = StatusMessage::Format(ijk[2], intStyle->_lal->getMaxSlice(), intStyle->_ImageViewer->GetSliceOrientation());
-		intStyle->_StatusMapper->SetInput(msg.c_str());
-		intStyle->_lal->RequestUpdate(-1, -1, -1);
-	}
-	// do noting if not in focus
-	HWND forground = GetForegroundWindow();
-	if (forground) {
-		char window_title[256];
-		GetWindowText(forground, window_title, 256);
-
-		if (strcmp("Slicer", window_title)) {
-			// render
-			cross_actor->GetMapper()->Update();
-			intStyle->_selection_actor->GetMapper()->Update();
-			intStyle->_ImageViewer->Render();
-			return;
-		}
-	}
-
-
-	double* size = selection_structured_points->GetBounds();
-	// changing the crosshair
-	vtkSmartPointer<vtkPoints> new_pts =
-		vtkSmartPointer<vtkPoints>::New();
-	double* temp = intStyle->redrawCrossHair();
-	double cross_1 = temp[0];
-	double cross_2 = temp[1];
-	double cross_3 = temp[2];
-	delete temp;
-
-	// When SHIFT key is pressed, udpate slice
-	if (intStyle->Interactor->GetShiftKey() || (intStyle->_hfMode && !intStyle->_lal->getSliceLock())){
-		cout << "Shift pressed" << endl;
-		intStyle->_ImageViewer->SetSlice(intStyle->_lal->getSlice());
-		int displayExtent[6];
-		intStyle->_ImageViewer->GetImageActor()->GetDisplayExtent(displayExtent);
-		intStyle->_selection_actor->SetDisplayExtent(displayExtent);
-		std::string msg = StatusMessage::Format(intStyle->_lal->getSlice(), intStyle->_lal->getMaxSlice(), intStyle->_ImageViewer->GetSliceOrientation());
-		intStyle->_StatusMapper->SetInput(msg.c_str());
-	}
-
-	int *selExt = selection_structured_points->GetExtent();
-
-
-	if (intStyle->Interactor->GetControlKey() || (intStyle->_hfMode && intStyle->_lal->getPainting())) {
-
-		vtkPointData* cellData = selection_structured_points->GetPointData();
-		vtkUnsignedShortArray* selection_scalars = intStyle->_selection_scalars;
-		//selection_scalars->SetNumberOfValues(selection_structured_points->GetNumberOfPoints());
-
-		double x[3];
-		int ijk[3];
-		double pCoord[3];
-		int ijk2[3];
-		int minX, maxX, minY, maxY;
-		switch (intStyle->_ImageViewer->GetSliceOrientation()) {
-		case SLICE_ORIENTATION_YZ:
-			cout << "case 0" << endl;
-			x[0] = cross_3;
-			x[1] = cross_2;
-			x[2] = cross_1;
-			selection_structured_points->ComputeStructuredCoordinates(x, ijk, pCoord);
-			ijk[0] = intStyle->_ImageViewer->GetSlice();//_lal->getSlice();
-			ijk2[1] = 0;
-			ijk2[2] = 0;
-			ijk2[0] = ijk[0];
-			minX = std::max(0, ijk[2] - intStyle->_drawSize);
-			maxX = std::min(ijk[2] + intStyle->_drawSize, selExt[5]);
-			minY = std::max(ijk[1] - intStyle->_drawSize, 0);
-			maxY = std::min(ijk[1] + intStyle->_drawSize, selExt[3]);
-			for (int i = minX; i < maxX; i++){
-				ijk2[2] = i;
-				for (int j = minY; j < maxY; j++){
-					ijk2[1] = j;
-					vtkIdType cellId = selection_structured_points->ComputePointId(ijk2);
-					//cout << ijk2[0] << ":" << ijk2[1] << ":" << ijk2[2] << endl;
-					selection_scalars->SetValue(cellId, FOREGROUND);
-				}
-			}
-			break;
-		case SLICE_ORIENTATION_XZ:
-			cout << "case 1" << endl;
-			x[0] = cross_1;
-			x[1] = cross_3;
-			x[2] = cross_2;
-			selection_structured_points->ComputeStructuredCoordinates(x, ijk, pCoord);
-			ijk[1] = intStyle->_ImageViewer->GetSlice();
-			ijk2[0] = 0;
-			ijk2[1] = ijk[1];
-			ijk2[2] = 0;
-			minX = std::max(0, ijk[0] - intStyle->_drawSize);
-			maxX = std::min(ijk[0] + intStyle->_drawSize, selExt[1]);
-			minY = std::max(ijk[2] - intStyle->_drawSize, 0);
-			maxY = std::min(ijk[2] + intStyle->_drawSize, selExt[5]);
-			for (int i = minX; i < maxX; i++){
-				ijk2[0] = i;
-				for (int j = minY; j < maxY; j++){
-					ijk2[2] = j;
-					vtkIdType cellId = selection_structured_points->ComputePointId(ijk2);
-					//cout << ijk2[0] << ":" << ijk2[1] << ":" << ijk2[2] << endl;
-					selection_scalars->SetValue(cellId, FOREGROUND);
-				}
-			}
-			break;
-		case SLICE_ORIENTATION_XY:
-			x[0] = cross_1;
-			x[1] = cross_2;
-			x[2] = cross_3;
-			selection_structured_points->ComputeStructuredCoordinates(x, ijk, pCoord);
-			ijk[2] = intStyle->_ImageViewer->GetSlice();
-			ijk2[0] = 0;
-			ijk2[1] = 0;
-			ijk2[2] = ijk[2];
-			minX = std::max(0, ijk[0] - intStyle->_drawSize);
-			maxX = std::min(ijk[0] + intStyle->_drawSize, selExt[1]);
-			minY = std::max(ijk[1] - intStyle->_drawSize, 0);
-			maxY = std::min(ijk[1] + intStyle->_drawSize, selExt[3]);
-			for (int i = minX; i < maxX; i++){
-				ijk2[0] = i;
-				for (int j = minY; j < maxY; j++){
-					ijk2[1] = j;
-					vtkIdType cellId = selection_structured_points->ComputePointId(ijk2);
-					//cout << ijk2[0] << ":" << ijk2[1] << ":" << ijk2[2] << endl;
-					selection_scalars->SetValue(cellId, FOREGROUND);
-				}
-			}
-			break;
-		}
-
-		//Update the underlying data object.
-		cellData->SetScalars(selection_scalars);
-
-		//Update the underlying data object.
-		cellData->GetScalars()->Modified();
-
-		////todo: remove the following lines if possible!
-		cellData->Modified();
-		selection_structured_points->Modified();
-		selection_mapper->Modified();
-
-		// change the crosshair's color
-		vtkSmartPointer<vtkPolyData> pd = (vtkPolyData *)((vtkPolyDataMapper*)(cross_actor->GetMapper())->GetInputAsDataSet());
-		vtkUnsignedCharArray* da = (vtkUnsignedCharArray*)pd->GetCellData()->GetScalars();
-		da->SetValue(0, 255);
-		da->SetValue(1, 0);
-		da->SetValue(2, 0);
-		da->SetValue(3, 255);
-		da->SetValue(4, 0);
-		da->SetValue(5, 0);
-	}
-	else if (intStyle->Interactor->GetAltKey()){
-		vtkPointData* cellData = selection_structured_points->GetPointData();
-		vtkUnsignedShortArray* selection_scalars = intStyle->_selection_scalars;
-		//selection_scalars->SetNumberOfValues(selection_structured_points->GetNumberOfPoints());
-
-		double x[3];
-		int ijk[3];
-		double pCoord[3];
-		int ijk2[3];
-		int minX, maxX, minY, maxY;
-		switch (intStyle->_ImageViewer->GetSliceOrientation()) {
-		case SLICE_ORIENTATION_YZ:
-			cout << "case 0" << endl;
-			x[0] = cross_3;
-			x[1] = cross_2;
-			x[2] = cross_1;
-			selection_structured_points->ComputeStructuredCoordinates(x, ijk, pCoord);
-			ijk[0] = intStyle->_ImageViewer->GetSlice();//_lal->getSlice();
-			ijk2[1] = 0;
-			ijk2[2] = 0;
-			ijk2[0] = ijk[0];
-			minX = std::max(0, ijk[2] - intStyle->_drawSize);
-			maxX = std::min(ijk[2] + intStyle->_drawSize, selExt[5]);
-			minY = std::max(ijk[1] - intStyle->_drawSize, 0);
-			maxY = std::min(ijk[1] + intStyle->_drawSize, selExt[3]);
-			for (int i = minX; i < maxX; i++){
-				ijk2[2] = i;
-				for (int j = minY; j < maxY; j++){
-					ijk2[1] = j;
-					vtkIdType cellId = selection_structured_points->ComputePointId(ijk2);
-					//cout << ijk2[0] << ":" << ijk2[1] << ":" << ijk2[2] << endl;
-					selection_scalars->SetValue(cellId, BACKGROUND);
-				}
-			}
-			break;
-		case SLICE_ORIENTATION_XZ:
-			cout << "case 1" << endl;
-			x[0] = cross_1;
-			x[1] = cross_3;
-			x[2] = cross_2;
-			selection_structured_points->ComputeStructuredCoordinates(x, ijk, pCoord);
-			ijk[1] = intStyle->_ImageViewer->GetSlice();
-			ijk2[0] = 0;
-			ijk2[1] = ijk[1];
-			ijk2[2] = 0;
-			minX = std::max(0, ijk[0] - intStyle->_drawSize);
-			maxX = std::min(ijk[0] + intStyle->_drawSize, selExt[1]);
-			minY = std::max(ijk[2] - intStyle->_drawSize, 0);
-			maxY = std::min(ijk[2] + intStyle->_drawSize, selExt[5]);
-			for (int i = minX; i < maxX; i++){
-				ijk2[0] = i;
-				for (int j = minY; j < maxY; j++){
-					ijk2[2] = j;
-					vtkIdType cellId = selection_structured_points->ComputePointId(ijk2);
-					//cout << ijk2[0] << ":" << ijk2[1] << ":" << ijk2[2] << endl;
-					selection_scalars->SetValue(cellId, BACKGROUND);
-				}
-			}
-			break;
-		case SLICE_ORIENTATION_XY:
-			x[0] = cross_1;
-			x[1] = cross_2;
-			x[2] = cross_3;
-			selection_structured_points->ComputeStructuredCoordinates(x, ijk, pCoord);
-			ijk[2] = intStyle->_ImageViewer->GetSlice();
-			ijk2[0] = 0;
-			ijk2[1] = 0;
-			ijk2[2] = ijk[2];
-			minX = std::max(0, ijk[0] - intStyle->_drawSize);
-			maxX = std::min(ijk[0] + intStyle->_drawSize, selExt[1]);
-			minY = std::max(ijk[1] - intStyle->_drawSize, 0);
-			maxY = std::min(ijk[1] + intStyle->_drawSize, selExt[3]);
-			for (int i = minX; i < maxX; i++){
-				ijk2[0] = i;
-				for (int j = minY; j < maxY; j++){
-					ijk2[1] = j;
-					vtkIdType cellId = selection_structured_points->ComputePointId(ijk2);
-					//cout << ijk2[0] << ":" << ijk2[1] << ":" << ijk2[2] << endl;
-					selection_scalars->SetValue(cellId, BACKGROUND);
-				}
-			}
-			break;
-		}
-
-		//Update the underlying data object.
-		cellData->SetScalars(selection_scalars);
-
-		//Update the underlying data object.
-		cellData->GetScalars()->Modified();
-
-		////todo: remove the following lines if possible!
-		cellData->Modified();
-		selection_structured_points->Modified();
-		selection_mapper->Modified();
-
-		// change the crosshair's color
-		vtkSmartPointer<vtkPolyData> pd = (vtkPolyData *)((vtkPolyDataMapper*)(cross_actor->GetMapper())->GetInputAsDataSet());
-		vtkUnsignedCharArray* da = (vtkUnsignedCharArray*)pd->GetCellData()->GetScalars();
-		da->SetValue(0, 0);
-		da->SetValue(1, 255);
-		da->SetValue(2, 0);
-		da->SetValue(3, 0);
-		da->SetValue(4, 255);
-		da->SetValue(5, 0);
-	}
-	else {
-		// change the crosshair's color
-		vtkSmartPointer<vtkPolyData> pd = (vtkPolyData *)((vtkPolyDataMapper*)(cross_actor->GetMapper())->GetInputAsDataSet());
-		vtkUnsignedCharArray* da2 = (vtkUnsignedCharArray*)pd->GetCellData()->GetScalars();
-		da2->SetValue(0, 0);
-		da2->SetValue(1, 0);
-		da2->SetValue(2, 255);
-		da2->SetValue(3, 0);
-		da2->SetValue(4, 0);
-		da2->SetValue(5, 255);
-	}
-
-	// render
-	cross_actor->GetMapper()->Update();
-	intStyle->_selection_actor->GetMapper()->Update();
-	intStyle->_ImageViewer->Render();
-
-}
 
 myVtkInteractorStyleImage::~myVtkInteractorStyleImage(){
 	//delete _graph_cut;
 	delete _grow_cut;
+	delete _marching_cubes;
 }
 
 vtkStandardNewMacro(myVtkInteractorStyleImage);

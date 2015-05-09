@@ -8,7 +8,7 @@ void GrowCut::SetImage(vtkStructuredPoints* CT_image, vtkStructuredPoints* segme
 
 // returns the maximal color in the image
 void GrowCut::init_tumors() {
-	this->_tumors.clear();
+	//this->_tumors.clear();
 	vtkIdType current_point;
 	bool createdNewTumor = true;
 	int* extent = this->_segmentation->GetExtent();
@@ -27,7 +27,7 @@ void GrowCut::init_tumors() {
 	{
 		for (int j = 0; j < extent[3]; j++)
 		{
-			for (int k = 0; k < extent[5]; k++)
+			for (int k = 0; k <= extent[5]; k++)
 			{
 				current_point = ComputePointId(i, j, k);
 				int ct_color = ct_scalars->GetValue(current_point);
@@ -63,7 +63,6 @@ void GrowCut::init_tumors() {
 				//cout << "D: " << seg_scalars->GetValue(current_point) << endl;
 				if (point.point_type == NOT_ACTIVE){
 					//cout << "DEBUG: 22" << endl;
-					
 					point.strength = 0.0f;
 					point.prev_strength = 0.0f;
 				}
@@ -177,13 +176,17 @@ vtkStructuredPoints* GrowCut::PerformSegmentation(){
 					scalars->Modified();
 				}
 			}
-
+			bool end_it = true;
 			for (std::map<int, Tumor::Point3D>::iterator it = this->_tumors.at(i).active_points.begin()/*points->begin()*/; it != this->_tumors.at(i).active_points.end()/*points->end()*/; ++it) {
-				it->second.prev_point_type = it->second.point_type;
-				it->second.prev_strength = it->second.strength;
-				points->at(it->first).prev_point_type = it->second.point_type;
-				points->at(it->first).prev_strength = it->second.strength;
+				if (it->second.prev_point_type != it->second.point_type || it->second.prev_strength != it->second.strength){
+					end_it = false;
+					it->second.prev_point_type = it->second.point_type;
+					it->second.prev_strength = it->second.strength;
+					points->at(it->first).prev_point_type = it->second.point_type;
+					points->at(it->first).prev_strength = it->second.strength;
+				}
 			}
+			if (end_it){ break; }
 		}
 		cout << "after T iterations!" << endl;
 
@@ -222,5 +225,5 @@ float GrowCut::g_function(int Cp, int Cq) {
 	//cout << "max min" << this->max_color << ":" << this->min_color << endl;
 	//cout << "formula: " << 1.0-(float(abs(Cp - Cq)) / float(this->max_color - this->min_color)) << endl;
 	//return 1.0 - (float(abs(Cp - Cq)) / float(this->max_color - this->min_color));
-	return exp(-1.5*float(abs(Cp - Cq))*float(abs(Cp - Cq)));
+	return exp(-0.3*float(abs(Cp - Cq))*float(abs(Cp - Cq)));
 }

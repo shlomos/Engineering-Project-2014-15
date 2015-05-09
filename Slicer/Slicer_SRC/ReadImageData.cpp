@@ -55,13 +55,13 @@ vtkSmartPointer<vtkActor> createCrosshair(double *size){
 	colors->SetName("Colors");
 
 	// Add the colors we created to the colors array
-	colors->InsertNextValue(0);
-	colors->InsertNextValue(0);
 	colors->InsertNextValue(255);
+	colors->InsertNextValue(255);
+	colors->InsertNextValue(0);
 
-	colors->InsertNextValue(0);
-	colors->InsertNextValue(0);
 	colors->InsertNextValue(255);
+	colors->InsertNextValue(255);
+	colors->InsertNextValue(0);
 
 	// Create the first line
 	vtkSmartPointer<vtkLine> line0 = vtkSmartPointer<vtkLine>::New();
@@ -134,8 +134,8 @@ int main(int argc, char* argv[])
 	selection->SetOrigin(reader->GetOutput()->GetOrigin());
 
 	// Setup the colors array for crosshair
-	vtkSmartPointer<vtkIntArray> selection_colors =
-		vtkSmartPointer<vtkIntArray>::New();
+	vtkSmartPointer<vtkUnsignedShortArray> selection_colors =
+		vtkSmartPointer<vtkUnsignedShortArray>::New();
 	//selection_colors->SetNumberOfComponents(1);//4
 	selection->AllocateScalars(VTK_UNSIGNED_SHORT, 1);
 	cout << selection->GetNumberOfCells() << endl;
@@ -190,7 +190,7 @@ int main(int argc, char* argv[])
 	lut->SetRange(0, 2);
 	lut->SetTableValue((vtkIdType)NOT_ACTIVE, 0, 0, 0, 0.0);
 	lut->SetTableValue((vtkIdType)FOREGROUND, 1, 0, 0, 0.5);
-	lut->SetTableValue((vtkIdType)BACKGROUND, 0, 0, 1, 0.5);
+	lut->SetTableValue((vtkIdType)BACKGROUND, 0, 0, 1, 0.3);
 	lut->Build();
 	mapperSel->SetLookupTable(lut);
 	mapperSel->SetInputData(selection);
@@ -201,12 +201,10 @@ int main(int argc, char* argv[])
 	smoothed->SetRadiusFactors(SMOOTHING_FACTOR_XY, SMOOTHING_FACTOR_XY, SMOOTHING_FACTOR_Z);
 	//smoothed->SetStandardDeviations(0.0,0.0,0.0);
 	smoothed->Update();
-
 	//First of all set the input for the viewer!
 	viewer->SetInputConnection(reader->GetOutputPort());
 	// make imageviewer2 and sliceTextMapper visible to our interactorstyle
 	// to enable slice status message updates when scrolling through the slices
-
 	vtkSmartPointer<vtkImageActor> selectionA = vtkSmartPointer<vtkImageActor>::New();
 	selectionA->GetMapper()->SetInputConnection(mapperSel->GetOutputPort());
 	selectionA->InterpolateOff();
@@ -245,10 +243,9 @@ int main(int argc, char* argv[])
 	usageTextActor->SetMapper(usageTextMapper);
 	usageTextActor->GetPositionCoordinate()->SetCoordinateSystemToNormalizedDisplay();
 	usageTextActor->GetPositionCoordinate()->SetValue(0.05, 0.95);
-
 	//Segmenter
 	//Segmenter* _segmenter = new Segmenter((vtkStructuredPoints*)(((vtkImageMapToColors*)selectionA->GetMapper()->GetInputAlgorithm()))->GetInput(), reader->GetOutput());
-	myInteractorStyle->SetImageViewer(viewer, outputName, selectionA, (vtkStructuredPoints*)smoothed->GetOutput()/*reader->GetOutput()*/);
+	myInteractorStyle->SetImageViewer(viewer, outputName, inputFilename, selectionA, (vtkStructuredPoints*)smoothed->GetOutput()/*reader->GetOutput()*/);
 	myInteractorStyle->SetStatusMapper(sliceTextMapper);
 	viewer->SetupInteractor(renderWindowInteractor);
 	//mapperSel->SetScalarModeToUseCellData();

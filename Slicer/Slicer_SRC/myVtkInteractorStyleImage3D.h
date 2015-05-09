@@ -28,6 +28,9 @@
 #include <vtkRenderWindow.h>
 #include <vtkRenderer.h>
 #include <vtkRenderWindowInteractor.h>
+#include <itkBinaryBallStructuringElement.h>
+#include <itkBinaryDilateImageFilter.h>
+#include <vtkImageDilateErode3D.h>
 #include "constants.h"
 #include <vtkDataSetMapper.h>
 #include <vtkStructuredPoints.h>
@@ -49,6 +52,7 @@
 #include "LeapAbstractionLayer.h"
 #include "MarchingCubes.h"
 #include <vtkImageToStructuredPoints.h>
+#include <vtkNIFTIImageWriter.h>
 #include <boost/thread.hpp>
 
 
@@ -85,10 +89,13 @@ public:
 protected:
 	vtkTextMapper* _StatusMapper;
 	std::string _outputName;
+	std::string _inputName;
 	LeapAbstractionLayer* _lal;
 	int _drawSize;
+	int _numTumors;
 	bool _rotLock;
 	bool _hfMode;
+	bool _foundLeaks;
 	vtkIdType _currSource;
 	vtkStructuredPoints* _selection;
 	boost::mutex _canSegment_mutex;
@@ -96,7 +103,8 @@ protected:
 public:
 	myVtkInteractorStyleImage3D();
 	void SetStatusMapper(vtkTextMapper* statusMapper);
-	void Initialize(std::string outputName, vtkStructuredPoints* _selection);
+	void SetNumTumors(int);
+	void Initialize(std::string outputName, std::string inputName, vtkStructuredPoints* _selection);
 	void RemoveLeaks();
 
 protected:
@@ -116,6 +124,7 @@ protected:
 	virtual void OnTimer();
 	virtual void OnMouseMove();
 	virtual void OnMouseWheelForward();
+	void StartInteraction3D(bool state);
 	virtual void OnMouseWheelBackward();
 };
 

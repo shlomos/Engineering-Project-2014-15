@@ -266,7 +266,7 @@ public:
 	}
 	typedef unsigned short PixelType;
 	template<class ImageType>
-	typename ImageType::Pointer correctImage(typename ImageType::Pointer leakyImage, typename ImageType::Pointer seedImage, typename ImageType::Pointer contourImage)
+	typename ImageType::Pointer correctImage(typename ImageType::Pointer leakyImage, typename ImageType::Pointer seedImage, typename ImageType::Pointer contourImage, int numTumors)
 	{
 		typedef typename itk::ImageRegionIteratorWithIndex<ImageType> IteratorType;
 		IteratorType leakIt(leakyImage, leakyImage->GetLargestPossibleRegion());
@@ -278,6 +278,9 @@ public:
 			{
 				leakIt.Set(0);
 			}
+			if (leakIt.Value() == 2){
+				leakIt.Set(0);
+			}
 
 		}
 
@@ -286,7 +289,9 @@ public:
 
 		typename ConnectorType::Pointer connector = ConnectorType::New();
 		connector->SetInput(leakyImage);
-		connector->SetFullyConnected(false);
+		cout << "cc: bg: " << connector->GetBackgroundValue() << endl;
+		connector->SetBackgroundValue(NOT_ACTIVE);
+		connector->SetFullyConnected(true); // was flase
 		connector->Update();
 
 		std::cout << "Number of objects: " << connector->GetObjectCount() << std::endl;
